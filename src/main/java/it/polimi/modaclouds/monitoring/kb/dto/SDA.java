@@ -16,9 +16,8 @@
  */
 package it.polimi.modaclouds.monitoring.kb.dto;
 
-public abstract class SDA {
+public abstract class SDA extends KBEntity{
 	
-	private String id;
 	private String url;
 	private String period;
 	private String method;
@@ -62,12 +61,6 @@ public abstract class SDA {
 	}
 	public void setTargetResource(String targetResource) {
 		this.targetResource = targetResource;
-	}
-	public String getId() {
-		return id;
-	}
-	public void setId(String id) {
-		this.id = id;
 	}
 	public boolean isStarted() {
 		return started;

@@ -22,6 +22,7 @@ import it.polimi.modaclouds.monitoring.kb.dto.SDA;
 import it.polimi.modaclouds.monitoring.objectstoreapi.ObjectStoreConnector;
 import it.polimi.modaclouds.qos_models.monitoring_ontology.MO;
 
+import java.io.FileNotFoundException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.List;
@@ -29,6 +30,7 @@ import java.util.UUID;
 
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Test;
 
 public class KBTest {
 
@@ -42,12 +44,13 @@ public class KBTest {
 			MO.setKnowledgeBaseURL(objectStoreConnector.getKBUrl());
 			kbConnector = KBConnector.getInstance();
 			kbConnector.setKbURL(new URL(MO.getKnowledgeBaseDataURL()));
-		} catch (MalformedURLException e) {
+		} catch (MalformedURLException | FileNotFoundException e) {
 			e.printStackTrace();
 			Assert.fail();
 		}
 	}
 
+	@Test
 	public void testInstallSDA() {
 		ForecastingTimeSeries fSda = new ForecastingTimeSeries();
 		fSda.setId(UUID.randomUUID().toString());
@@ -59,17 +62,19 @@ public class KBTest {
 		fSda.setTargetMetric("CpuUtilization");
 		fSda.setTargetResource("vm1");
 		fSda.setUrl("http://localhost:8800");
-		
-		kbConnector.installSDA(fSda);
+
+		kbConnector.add(fSda);
 	}
-	
+
+	@Test
 	public void testRetrieveSDAs() {
-		List<SDA> sdas = kbConnector.getInstalledSDAs();
-		for (SDA sda: sdas) {
-			kbConnector.setStarted(sda);
+		List<SDA> sdas = kbConnector.getAll(SDA.class);
+		if (sdas != null) {
+			for (SDA sda : sdas) {
+				sda.setStarted(true);
+				kbConnector.add(sda);
+			}
 		}
 	}
-	
-	
 
 }
