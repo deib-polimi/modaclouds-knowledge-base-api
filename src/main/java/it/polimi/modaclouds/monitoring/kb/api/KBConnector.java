@@ -17,8 +17,8 @@
 package it.polimi.modaclouds.monitoring.kb.api;
 
 import it.polimi.modaclouds.monitoring.kb.dto.KBEntity;
-import it.polimi.modaclouds.monitoring.kb.dto.SDA;
 
+import java.io.FileNotFoundException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -26,7 +26,6 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.beanutils.BeanUtils;
-import org.apache.commons.lang.NotImplementedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,7 +33,7 @@ public class KBConnector {
 
 	private static KBConnector _instance = null;
 
-	public static KBConnector getInstance() throws MalformedURLException {
+	public static KBConnector getInstance() throws MalformedURLException, FileNotFoundException {
 		if (_instance == null) {
 			_instance = new KBConnector();
 		}
@@ -45,6 +44,8 @@ public class KBConnector {
 			.getLogger(KBConnector.class.getName());
 
 	private URL kbURL;
+	private String myID;
+	
 
 	public URL getKbURL() {
 		return kbURL;
@@ -54,16 +55,17 @@ public class KBConnector {
 		this.kbURL = kbURL;
 	}
 
-	private KBConnector() throws MalformedURLException {
+	private KBConnector() throws MalformedURLException, FileNotFoundException {
 		loadConfig();
 	}
 
-	private void loadConfig() throws MalformedURLException {
+	private void loadConfig() throws MalformedURLException, FileNotFoundException {
 		Config config = Config.getInstance();
 		String kbAddress = config.getKBServerAddress();
 		int ddaPort = config.getKBServerPort();
 		kbAddress = cleanAddress(kbAddress);
 		kbURL = new URL("http://" + kbAddress + ":" + ddaPort);
+		myID = config.getMyID();
 	}
 
 	private static String cleanAddress(String address) {
@@ -102,6 +104,10 @@ public class KBConnector {
 
 	public <T> void delete(String id, Class<T> entityClass) {
 		// TODO
+	}
+	
+	public String getMyId() {
+		return myID;
 	}
 
 }

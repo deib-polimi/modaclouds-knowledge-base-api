@@ -16,6 +16,8 @@
  */
 package it.polimi.modaclouds.monitoring.kb.api;
 
+import java.io.FileNotFoundException;
+
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.PropertiesConfiguration;
@@ -29,15 +31,16 @@ public class Config {
 	
 	private Configuration config;
 	
-	private Config(){
+	private Config() throws FileNotFoundException{
 		try {
 			config = new PropertiesConfiguration("kb.properties");
 		} catch (ConfigurationException e) {
 			logger.error("Error while reading the configuration file", e);
 		}
+		if (config ==null) throw new FileNotFoundException("kb.properties file not found");
 	}
 			
-	public static Config getInstance(){
+	public static Config getInstance() throws FileNotFoundException{
 		if(_instance==null)
 			_instance=new Config();
 		return _instance;
@@ -49,6 +52,10 @@ public class Config {
 	
 	public String getKBServerAddress(){
 		return config.getString("kb_server.address");
+	}
+
+	public String getMyID() {
+		return config.getString("myID");
 	}	
 	
 }
