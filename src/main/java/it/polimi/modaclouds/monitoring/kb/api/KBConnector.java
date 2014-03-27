@@ -16,7 +16,7 @@
  */
 package it.polimi.modaclouds.monitoring.kb.api;
 
-import it.polimi.modaclouds.monitoring.kb.dto.KBEntity;
+import it.polimi.modaclouds.qos_models.monitoring_ontology.KBEntity;
 
 import java.io.FileNotFoundException;
 import java.lang.reflect.InvocationTargetException;
@@ -44,7 +44,6 @@ public class KBConnector {
 			.getLogger(KBConnector.class.getName());
 
 	private URL kbURL;
-	private String myID;
 	
 
 	public URL getKbURL() {
@@ -65,7 +64,6 @@ public class KBConnector {
 		int ddaPort = config.getKBServerPort();
 		kbAddress = cleanAddress(kbAddress);
 		kbURL = new URL("http://" + kbAddress + ":" + ddaPort);
-		myID = config.getMyID();
 	}
 
 	private static String cleanAddress(String address) {
@@ -104,10 +102,6 @@ public class KBConnector {
 
 	public <T> void delete(String id, Class<T> entityClass) {
 		// TODO
-	}
-	
-	public String getMyId() {
-		return myID;
 	}
 
 }

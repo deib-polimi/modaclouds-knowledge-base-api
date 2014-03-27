@@ -17,14 +17,17 @@
 package it.polimi.modaclouds.monitoring.kb.test;
 
 import it.polimi.modaclouds.monitoring.kb.api.KBConnector;
-import it.polimi.modaclouds.monitoring.kb.dto.ForecastingTimeSeries;
-import it.polimi.modaclouds.monitoring.kb.dto.SDA;
 import it.polimi.modaclouds.monitoring.objectstoreapi.ObjectStoreConnector;
 import it.polimi.modaclouds.qos_models.monitoring_ontology.MO;
+import it.polimi.modaclouds.qos_models.monitoring_ontology.MonitorableResource;
+import it.polimi.modaclouds.qos_models.monitoring_ontology.Parameter;
+import it.polimi.modaclouds.qos_models.monitoring_ontology.StatisticalDataAnalyzer;
+import it.polimi.modaclouds.qos_models.monitoring_ontology.VM;
 
 import java.io.FileNotFoundException;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -52,25 +55,34 @@ public class KBTest {
 
 	@Test
 	public void testInstallSDA() {
-		ForecastingTimeSeries fSda = new ForecastingTimeSeries();
-		fSda.setId(UUID.randomUUID().toString());
-		fSda.setForecastPeriod("60");
-		fSda.setMethod("AR");
-		fSda.setOrder("1");
-		fSda.setPeriod("60");
-		fSda.setReturnedMetric("CpuUtilizationForecast");
-		fSda.setTargetMetric("CpuUtilization");
-		fSda.setTargetResource("vm1");
-		fSda.setUrl("http://localhost:8800");
+		StatisticalDataAnalyzer ftsSDA = new StatisticalDataAnalyzer();
+		ftsSDA.setId(UUID.randomUUID().toString());
+		ftsSDA.setType("ForecastingTimeSeries");
+		ftsSDA.setMethod("AR");
+		ftsSDA.setPeriod("60");
+		ftsSDA.setReturnedMetric("CpuUtilizationForecast");
+		ftsSDA.setTargetMetric("CpuUtilization");
+		ftsSDA.setUrl("http://localhost:8800");
+		
+		List<MonitorableResource> targetResources = new ArrayList<MonitorableResource>();
+		VM vm = new VM();
+		vm.setType("FrontendVM");
+		targetResources.add(vm);
+		ftsSDA.setTargetResources(targetResources);
+		
+		List<Parameter> parameters = new ArrayList<Parameter>();
+		parameters.add(new Parameter("forecastPeriod","60"));
+		parameters.add(new Parameter("oreder","1"));
+		ftsSDA.setParameters(parameters);
 
-		kbConnector.add(fSda);
+		kbConnector.add(ftsSDA);
 	}
 
 	@Test
 	public void testRetrieveSDAs() {
-		List<SDA> sdas = kbConnector.getAll(SDA.class);
+		List<StatisticalDataAnalyzer> sdas = kbConnector.getAll(StatisticalDataAnalyzer.class);
 		if (sdas != null) {
-			for (SDA sda : sdas) {
+			for (StatisticalDataAnalyzer sda : sdas) {
 				sda.setStarted(true);
 				kbConnector.add(sda);
 			}

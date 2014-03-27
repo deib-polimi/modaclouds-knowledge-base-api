@@ -54,8 +54,5 @@ public class Config {
 		return config.getString("kb_server.address");
 	}
 
-	public String getMyID() {
-		return config.getString("myID");
-	}	
 	
 }
