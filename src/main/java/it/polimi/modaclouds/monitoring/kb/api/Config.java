@@ -35,14 +35,15 @@ public class Config {
 	private Config(){
 		try {
 			config = new PropertiesConfiguration("kb.properties");
-			if (config == null) {
+		} catch (ConfigurationException e) {
+			try {
 				File configFile = new File(Config.class.getProtectionDomain()
 						.getCodeSource().getLocation().getPath());
 				config = new PropertiesConfiguration(configFile.getParent()
 						+ "/kb.properties");
+			} catch (ConfigurationException e2) {
+				logger.warn("kb.properties file not found. Continuing without it.", e2);
 			}
-		} catch (ConfigurationException e) {
-			logger.warn("kb.properties file not found. Continuing without it.");
 		}
 	}
 
