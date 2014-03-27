@@ -16,6 +16,7 @@
  */
 package it.polimi.modaclouds.monitoring.kb.api;
 
+import java.io.File;
 import java.io.FileNotFoundException;
 
 import org.apache.commons.configuration.Configuration;
@@ -24,35 +25,39 @@ import org.apache.commons.configuration.PropertiesConfiguration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
 public class Config {
 	private static Config _instance = null;
-	private static final Logger logger = LoggerFactory.getLogger(Config.class); 
-	
+	private static final Logger logger = LoggerFactory.getLogger(Config.class);
+
 	private Configuration config;
+
 	
-	private Config() throws FileNotFoundException{
+	private Config(){
 		try {
 			config = new PropertiesConfiguration("kb.properties");
+			if (config == null) {
+				File configFile = new File(Config.class.getProtectionDomain()
+						.getCodeSource().getLocation().getPath());
+				config = new PropertiesConfiguration(configFile.getParent()
+						+ "/kb.properties");
+			}
 		} catch (ConfigurationException e) {
-			logger.error("Error while reading the configuration file", e);
+			logger.warn("kb.properties file not found. Continuing without it.");
 		}
-		if (config ==null) throw new FileNotFoundException("kb.properties file not found");
 	}
-			
-	public static Config getInstance() throws FileNotFoundException{
-		if(_instance==null)
-			_instance=new Config();
+
+	public static Config getInstance() throws FileNotFoundException {
+		if (_instance == null)
+			_instance = new Config();
 		return _instance;
 	}
-	
-	public int getKBServerPort(){
+
+	public int getKBServerPort() {
 		return config.getInt("kb_server.port");
 	}
-	
-	public String getKBServerAddress(){
+
+	public String getKBServerAddress() {
 		return config.getString("kb_server.address");
 	}
 
-	
 }
