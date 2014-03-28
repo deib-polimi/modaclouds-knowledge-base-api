@@ -62,7 +62,6 @@ public class KBTest {
 		ftsSDA.setPeriod("60");
 		ftsSDA.setReturnedMetric("CpuUtilizationForecast");
 		ftsSDA.setTargetMetric("CpuUtilization");
-		ftsSDA.setUrl("http://localhost:8800");
 		
 		List<MonitorableResource> targetResources = new ArrayList<MonitorableResource>();
 		VM vm = new VM();
