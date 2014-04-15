@@ -35,7 +35,7 @@ Dependency:
 <dependencies>
 	<dependency>
 		<groupId>it.polimi.modaclouds.monitoring</groupId>
-		<artifactId>monitoring-knowledge-base-api</artifactId>
+		<artifactId>knowledge-base-api</artifactId>
 		<version>VERSION</version>
 	</dependency>
 </dependencies>

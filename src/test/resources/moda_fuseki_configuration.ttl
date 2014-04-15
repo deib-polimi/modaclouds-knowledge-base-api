@@ -6,7 +6,6 @@
 @prefix :        <#> .
 [] rdf:type fuseki:Server ;
    fuseki:services (
-    #Descrivi i servizi che vuoi esporre
      <#service1> 
    ) .
 

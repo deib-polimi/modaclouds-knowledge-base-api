@@ -36,6 +36,7 @@ public class AllTests {
 	@BeforeClass
 	public static void init() {
 		File datasetDir = new File("target/generated-test-resources/dataset");
+		deleteDir(datasetDir);
 		datasetDir.mkdirs();
 		ServerConfig config = FusekiConfig.configure(AllTests.class
 				.getResource("/moda_fuseki_configuration.ttl").getFile());
@@ -46,6 +47,19 @@ public class AllTests {
 	@AfterClass
 	public static void teardown() {
 		fusekiServer.stop();
+	}
+	
+	public static boolean deleteDir(File dir) {
+	    if (dir.isDirectory()) {
+	        String[] children = dir.list();
+	        for (int i=0; i<children.length; i++) {
+	            boolean success = deleteDir(new File(dir, children[i]));
+	            if (!success) {
+	                return false;
+	            }
+	        }
+	    }
+	    return dir.delete();
 	}
 
 }

@@ -16,6 +16,8 @@
  */
 package it.polimi.modaclouds.monitoring.kb.test;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 import it.polimi.modaclouds.monitoring.kb.api.KBConnector;
 import it.polimi.modaclouds.monitoring.objectstoreapi.ObjectStoreConnector;
 import it.polimi.modaclouds.qos_models.monitoring_ontology.MO;
@@ -27,20 +29,20 @@ import it.polimi.modaclouds.qos_models.monitoring_ontology.VM;
 import java.io.FileNotFoundException;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
-import java.util.UUID;
+import java.util.Set;
 
-import org.junit.Assert;
-import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 public class KBTest {
 
-	private KBConnector kbConnector;
+	private static KBConnector kbConnector;
+	private static StatisticalDataAnalyzer ftsSDA;
 
-	@Before
-	public void init() {
+	@BeforeClass
+	public static void init() {
 		ObjectStoreConnector objectStoreConnector = null;
 		try {
 			objectStoreConnector = ObjectStoreConnector.getInstance();
@@ -49,37 +51,38 @@ public class KBTest {
 			kbConnector.setKbURL(new URL(MO.getKnowledgeBaseDataURL()));
 		} catch (MalformedURLException | FileNotFoundException e) {
 			e.printStackTrace();
-			Assert.fail();
+			fail();
 		}
-	}
-
-	@Test
-	public void testInstallSDA() {
-		StatisticalDataAnalyzer ftsSDA = new StatisticalDataAnalyzer();
-		ftsSDA.setId(UUID.randomUUID().toString());
+		ftsSDA = new StatisticalDataAnalyzer();
 		ftsSDA.setType("ForecastingTimeSeries");
 		ftsSDA.setMethod("AR");
-		ftsSDA.setPeriod("60");
+		ftsSDA.setPeriod(60);
 		ftsSDA.setReturnedMetric("CpuUtilizationForecast");
 		ftsSDA.setTargetMetric("CpuUtilization");
 		
-		List<MonitorableResource> targetResources = new ArrayList<MonitorableResource>();
+		Set<MonitorableResource> targetResources = new HashSet<MonitorableResource>();
 		VM vm = new VM();
 		vm.setType("FrontendVM");
 		targetResources.add(vm);
 		ftsSDA.setTargetResources(targetResources);
 		
-		List<Parameter> parameters = new ArrayList<Parameter>();
+		Set<Parameter> parameters = new HashSet<Parameter>();
 		parameters.add(new Parameter("forecastPeriod","60"));
-		parameters.add(new Parameter("oreder","1"));
+		parameters.add(new Parameter("order","1"));
 		ftsSDA.setParameters(parameters);
-
 		kbConnector.add(ftsSDA);
 	}
 
 	@Test
-	public void testRetrieveSDAs() {
-		List<StatisticalDataAnalyzer> sdas = kbConnector.getAll(StatisticalDataAnalyzer.class);
+	public void testRetrieveSDA() {
+		StatisticalDataAnalyzer retrievedSDA = kbConnector.get(ftsSDA.getUri(), StatisticalDataAnalyzer.class);
+		assertEquals(retrievedSDA.getUri(), ftsSDA.getUri());
+	}
+
+	@Test
+	public void testAddExisting() {
+		kbConnector.add(ftsSDA);
+		Set<StatisticalDataAnalyzer> sdas = kbConnector.getAll(StatisticalDataAnalyzer.class);
 		if (sdas != null) {
 			for (StatisticalDataAnalyzer sda : sdas) {
 				sda.setStarted(true);
