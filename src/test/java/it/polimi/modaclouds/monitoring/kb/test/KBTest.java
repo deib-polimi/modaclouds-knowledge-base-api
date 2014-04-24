@@ -54,15 +54,15 @@ public class KBTest {
 			fail();
 		}
 		ftsSDA = new StatisticalDataAnalyzer();
-		ftsSDA.setType("ForecastingTimeSeries");
-		ftsSDA.setMethod("AR");
+		ftsSDA.setAggregateFunction("ForecastTS");
+		ftsSDA.setAggregateFunction("AR");
 		ftsSDA.setPeriod(60);
 		ftsSDA.setReturnedMetric("CpuUtilizationForecast");
 		ftsSDA.setTargetMetric("CpuUtilization");
 		
 		Set<MonitorableResource> targetResources = new HashSet<MonitorableResource>();
 		VM vm = new VM();
-		vm.setType("FrontendVM");
+		vm.setKlass("FrontendVM");
 		targetResources.add(vm);
 		ftsSDA.setTargetResources(targetResources);
 		
@@ -75,14 +75,14 @@ public class KBTest {
 
 	@Test
 	public void testRetrieveSDA() {
-		StatisticalDataAnalyzer retrievedSDA = kbConnector.get(ftsSDA.getUri(), StatisticalDataAnalyzer.class);
+		StatisticalDataAnalyzer retrievedSDA = (StatisticalDataAnalyzer) kbConnector.get(ftsSDA.getUri());
 		assertEquals(retrievedSDA.getUri(), ftsSDA.getUri());
 	}
 
 	@Test
 	public void testAddExisting() {
 		kbConnector.add(ftsSDA);
-		Set<StatisticalDataAnalyzer> sdas = kbConnector.getAll(StatisticalDataAnalyzer.class);
+		Set<StatisticalDataAnalyzer> sdas = (Set)kbConnector.getAll(StatisticalDataAnalyzer.class);
 		if (sdas != null) {
 			for (StatisticalDataAnalyzer sda : sdas) {
 				sda.setStarted(true);

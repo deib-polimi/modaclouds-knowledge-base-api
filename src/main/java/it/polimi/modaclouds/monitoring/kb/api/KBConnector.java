@@ -87,18 +87,11 @@ public class KBConnector {
 	public void setKbURL(URL kbURL) {
 		this.kbURL = kbURL;
 	}
-
-	/**
-	 * 
-	 * @param uri
-	 * @param entityClass
-	 * @return the entity of the given class with the given id, {@code null} if
-	 *         the entity does not exist in KB
-	 */
-	public <T extends KBEntity> T get(String uri, Class<T> entityClass) {
+	
+	public KBEntity get(String uri) {
 		Model model = da.getModel();
 		Resource r = ResourceFactory.createResource(uri);
-		T entity = KBMapping.toJava(r, model, entityClass);
+		KBEntity entity = KBMapping.toJava(r, model);
 		return entity;
 	}
 
@@ -119,47 +112,33 @@ public class KBConnector {
 		execUpdate.execute();
 	}
 
-	public <T> void delete(String id, Class<T> entityClass) {
+	public void delete(String uri) {
 		throw new NotImplementedException();
 	}
 
-	public void addAll(List<KBEntity> entities) {
+	public void addAll(Set<? extends KBEntity> entities) {
 		for (KBEntity entity : entities) {
 			add(entity);
 		}
 	}
 
-	public <T extends KBEntity> Set<T> getAll(Class<T> entityClass) {
-		Set<String> uris = getURIs(entityClass);
-		Set<T> entities = new HashSet<T>();
-		for (String uri : uris) {
-			entities.add(get(uri, entityClass));
+	public Set<KBEntity> getAll(Class<? extends KBEntity> entityClass) {
+		Set<KBEntity> entities = new HashSet<KBEntity>();
+		Model model = da.getModel();
+		StmtIterator iter = model.listStatements(
+				null,
+				RDF.type,
+				ResourceFactory.createResource(KBMapping.toKB(
+						entityClass.getSimpleName(), false)));
+		while (iter.hasNext()) {
+			Resource r = iter.nextStatement().getSubject();
+			entities.add(KBMapping.toJava(r, model));
 		}
 		return entities;
 	}
 
 	public <T extends KBEntity> Set<String> getURIs(Class<T> entityClass) {
 		Set<String> uris = new HashSet<String>();
-		// String queryString = "PREFIX " + MO.prefix + ":<" + MO.URI + "> "
-		// + "PREFIX rdf:<" + RDF.getURI() + "> "
-		// + "SELECT ?uri "
-		// + "FROM <" + MO.getKnowledgeBaseQueryURL() + "> "
-		// + "WHERE { ?uri rdf:type " +
-		// KBMapping.toKB(entityClass.getSimpleName(),true) + " . }";
-		// Query query = QueryFactory.create(queryString,
-		// Syntax.syntaxSPARQL_11);
-		// QueryExecution qexec =
-		// QueryExecutionFactory.createServiceRequest(MO.getKnowledgeBaseQueryURL(),query);
-		// try {
-		// ResultSet results = qexec.execSelect();
-		// for (; results.hasNext();) {
-		// QuerySolution soln = results.nextSolution();
-		// Literal l = soln.getLiteral("uri");
-		// uris.add(l.getString());
-		// }
-		// } finally {
-		// qexec.close();
-		// }
 		Model model = da.getModel();
 		StmtIterator iter = model.listStatements(
 				null,
@@ -207,13 +186,14 @@ public class KBConnector {
 		return queryString;
 	}
 
+	@SuppressWarnings("unchecked")
 	private String[] prepareAddQueryBody(KBEntity entity,
 			Set<KBEntity> explored, VariableGenerator varGen) {
 		String[] queryBody = getEmptyQueryBody();
 		if (!explored.contains(entity)) {
 			explored.add(entity);
 			Map<String, Object> properties = getProperties(entity);
-			KBEntity entityFromKB = get(entity.getUri(), entity.getClass());
+			KBEntity entityFromKB = get(entity.getUri());
 			if (entityFromKB == null) { // entity does not exist
 				addNewEntity(entity, queryBody);
 				for (String property : properties.keySet()) {
@@ -239,10 +219,10 @@ public class KBConnector {
 								varGen);
 					} else if (!entityFromKBValue.equals(value)) {
 						if (entityFromKBValue instanceof Set) {
-							for (Object o: (Set)entityFromKBValue) {
+							for (Object o: (Set<Object>)entityFromKBValue) {
 								logger.info(o.toString());
 							}
-							for (Object o: (Set)value) {
+							for (Object o: (Set<Object>)value) {
 								logger.info(o.toString());
 							}
 						}
@@ -350,4 +330,17 @@ public class KBConnector {
 		}
 	}
 
+	public Set<KBEntity> getByPropertyValue(String property, String value) {
+		Set<KBEntity> entities = new HashSet<KBEntity>();
+		Model model = da.getModel();
+		StmtIterator iter = model.listStatements(
+				null,
+				ResourceFactory.createProperty(KBMapping.toKB(property, false)),
+				value);
+		while (iter.hasNext()) {
+			Resource r = iter.nextStatement().getSubject();
+			entities.add(KBMapping.toJava(r, model));
+		}
+		return entities;
+	}
 }

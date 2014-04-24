@@ -69,14 +69,11 @@ public class KBMapping {
 		return (usePrefix ? (MO.prefix + ":") : MO.URI) + kbName;
 	}
 
-	public static <T extends KBEntity> T toJava(Resource r, Model model,
-			Class<T> entityClass) {
-		T entity = null;
-		// for (StmtIterator iter = model.listStatements(); iter.hasNext();) {
-		// System.out.println(iter.nextStatement().toString());
-		// }
+	public static KBEntity toJava(Resource r, Model model) {
+		KBEntity entity = null;
 		if (model.contains(r, null, (RDFNode) null)) {
 			try {
+				Class<? extends KBEntity> entityClass = getJavaClass(r, model);
 				entity = entityClass.newInstance();
 				entity.setUri(r.getURI());
 				StmtIterator stmtIterator = model
@@ -89,10 +86,7 @@ public class KBMapping {
 							.toString());
 					if (rdfObject.isResource()) {
 						Resource resourceObject = rdfObject.asResource();
-						Class<? extends KBEntity> objectClass = getJavaClass(
-								resourceObject, model);
-						Object kbObject = toJava(resourceObject, model,
-								objectClass);
+						KBEntity kbObject = toJava(resourceObject, model);
 						addProperty(javaProperty, kbObject, properties);
 					} else if (rdfObject.asLiteral().getDatatype() == null) { // plain
 						addProperty(javaProperty, rdfObject.asLiteral()
@@ -178,5 +172,6 @@ public class KBMapping {
 		}
 
 	}
+
 
 }
