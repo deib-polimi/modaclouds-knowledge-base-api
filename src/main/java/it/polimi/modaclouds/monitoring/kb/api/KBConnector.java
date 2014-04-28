@@ -28,7 +28,6 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -67,8 +66,7 @@ public class KBConnector {
 	private static KBConnector _instance = null;
 	private Logger logger = LoggerFactory
 			.getLogger(KBConnector.class.getName());
-	private DatasetAccessor da = DatasetAccessorFactory.createHTTP(MO
-			.getKnowledgeBaseDataURL());
+	private DatasetAccessor da;
 
 	private URL kbURL;
 
@@ -153,6 +151,8 @@ public class KBConnector {
 
 	private KBConnector() throws MalformedURLException, FileNotFoundException {
 		loadConfig();
+		da = DatasetAccessorFactory.createHTTP(MO
+				.getKnowledgeBaseDataURL());
 	}
 
 	private void loadConfig() throws MalformedURLException,
@@ -162,6 +162,7 @@ public class KBConnector {
 		int ddaPort = config.getKBServerPort();
 		kbAddress = cleanAddress(kbAddress);
 		kbURL = new URL("http://" + kbAddress + ":" + ddaPort);
+		MO.setKnowledgeBaseURL(kbURL);
 	}
 
 	private static String cleanAddress(String address) {
