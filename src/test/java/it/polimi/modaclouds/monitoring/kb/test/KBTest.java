@@ -62,7 +62,7 @@ public class KBTest {
 		
 		Set<MonitorableResource> targetResources = new HashSet<MonitorableResource>();
 		VM vm = new VM();
-		vm.setKlass("FrontendVM");
+		vm.setId("FrontendVM");
 		targetResources.add(vm);
 		ftsSDA.setTargetResources(targetResources);
 		
