@@ -25,12 +25,12 @@ import it.polimi.modaclouds.qos_models.monitoring_ontology.MonitorableResource;
 import it.polimi.modaclouds.qos_models.monitoring_ontology.Parameter;
 import it.polimi.modaclouds.qos_models.monitoring_ontology.StatisticalDataAnalyzer;
 import it.polimi.modaclouds.qos_models.monitoring_ontology.VM;
+import it.polimi.modaclouds.qos_models.monitoring_ontology.Vocabulary;
 
 import java.io.FileNotFoundException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 
 import org.junit.BeforeClass;
@@ -56,7 +56,7 @@ public class KBTest {
 		ftsSDA = new StatisticalDataAnalyzer();
 		ftsSDA.setAggregateFunction("ForecastTS");
 		ftsSDA.setAggregateFunction("AR");
-		ftsSDA.setPeriod(60);
+		ftsSDA.addParameter(new Parameter(Vocabulary.timeStep, "60"));;
 		ftsSDA.setReturnedMetric("CpuUtilizationForecast");
 		ftsSDA.setTargetMetric("CpuUtilization");
 		
