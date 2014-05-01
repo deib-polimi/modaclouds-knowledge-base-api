@@ -111,7 +111,20 @@ public class KBConnector {
 	}
 
 	public void delete(String uri) {
-		throw new NotImplementedException();
+		// TODO not only this triple should be cancelled!!
+		String queryString = "DELETE WHERE { <" + uri + "> <" + RDF.type.getURI() + "> ?o . }"; 
+		logger.info("Prepared delete Query:\n" + queryString);
+		UpdateRequest query = UpdateFactory.create(queryString,
+				Syntax.syntaxSPARQL_11);
+		UpdateProcessor execUpdate = UpdateExecutionFactory.createRemote(query,
+				MO.getKnowledgeBaseUpdateURL());
+		execUpdate.execute();
+	}
+	
+	public void deleteAll(Set<? extends KBEntity> entities) {
+		for (KBEntity entity: entities) {
+			delete(entity.getUri());
+		}
 	}
 
 	public void addAll(Set<? extends KBEntity> entities) {
@@ -344,4 +357,6 @@ public class KBConnector {
 		}
 		return entities;
 	}
+
+	
 }
