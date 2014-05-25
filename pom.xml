@@ -21,7 +21,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>it.polimi.modaclouds.monitoring.knowledge-base-api</groupId>
 	<artifactId>knowledge-base-api</artifactId>
-	<version>1.0</version>
+	<version>1.0.1</version>
 	<name>MODAClouds Knowledge Base API</name>
 	<packaging>jar</packaging>
 	<inceptionYear>2014</inceptionYear>
@@ -110,7 +110,7 @@
 		<dependency>
 			<groupId>it.polimi.modaclouds.qos-models</groupId>
 			<artifactId>qos-models</artifactId>
-			<version>1.0</version>
+			<version>1.0.1</version>
 		</dependency>
 		<dependency>
 			<groupId>it.polimi.modaclouds.monitoring</groupId>

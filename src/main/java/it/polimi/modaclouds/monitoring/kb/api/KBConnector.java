@@ -133,20 +133,7 @@ public class KBConnector {
 		}
 	}
 
-	public Set<KBEntity> getAll(Class<? extends KBEntity> entityClass) {
-		Set<KBEntity> entities = new HashSet<KBEntity>();
-		Model model = da.getModel();
-		StmtIterator iter = model.listStatements(
-				null,
-				RDF.type,
-				ResourceFactory.createResource(KBMapping.toKB(
-						entityClass.getSimpleName(), false)));
-		while (iter.hasNext()) {
-			Resource r = iter.nextStatement().getSubject();
-			entities.add(KBMapping.toJava(r, model));
-		}
-		return entities;
-	}
+	
 
 	public <T extends KBEntity> Set<String> getURIs(Class<T> entityClass) {
 		Set<String> uris = new HashSet<String>();
@@ -357,6 +344,21 @@ public class KBConnector {
 		}
 		return entities;
 	}
-
+	
+	
+	public Set<KBEntity> getAll(Class<? extends KBEntity> entityClass) {
+		Set<KBEntity> entities = new HashSet<KBEntity>();
+		Model model = da.getModel();
+		StmtIterator iter = model.listStatements(
+				null,
+				RDF.type,
+				ResourceFactory.createResource(KBMapping.toKB(
+						entityClass.getSimpleName(), false)));
+		while (iter.hasNext()) {
+			Resource r = iter.nextStatement().getSubject();
+			entities.add(KBMapping.toJava(r, model));
+		}
+		return entities;
+	}
 	
 }
