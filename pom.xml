@@ -130,13 +130,13 @@
 			<plugin>
 				<artifactId>maven-assembly-plugin</artifactId>
 				<configuration>
-					<!-- <archive>
+					<archive>
 						<manifest>
 							<mainClass>
-								com.test.your.main.class.goes.Here
+								it.polimi.modaclouds.monitoring.kb.examples.UploadSimpleDeployment
 							</mainClass>
 						</manifest>
-					</archive> -->
+					</archive>
 					<descriptorRefs>
 						<descriptorRef>jar-with-dependencies</descriptorRef>
 					</descriptorRefs>
