@@ -17,34 +17,37 @@
 package it.polimi.modaclouds.monitoring.kb.examples;
 
 import it.polimi.modaclouds.monitoring.kb.api.KBConnector;
-import it.polimi.modaclouds.qos_models.monitoring_ontology.VM;
+import it.polimi.modaclouds.qos_models.monitoring_ontology.KBEntity;
+
+import java.lang.reflect.Method;
+import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class UploadSimpleDeployment {
+public class UploadDeploymentModel {
 
 	private static Logger logger = LoggerFactory
-			.getLogger(UploadSimpleDeployment.class.getName());
+			.getLogger(UploadDeploymentModel.class.getName());
 
+	private static final Class<? extends DeploymentModelFactory> currentModelFactory = BOCDeployment.class;
 
+	@SuppressWarnings("unchecked")
 	public static void main(String[] args) {
 		try {
 			KBConnector knowledgeBase = KBConnector.getInstance();
-			
-			VM amazonVM = new VM();
-			amazonVM.setUri("http://www.modaclouds.eu/rdfs/1.0/monitoring/FrontendVM-1");
-			amazonVM.setId("FrontendVM");
-			amazonVM.setCloudProvider("Amazon");
-			amazonVM.setNumberOfCpus(1);
-			amazonVM.setStarted(true);
-			
-			knowledgeBase.add(amazonVM);
+
+			Method m = currentModelFactory.getMethod("getModel");
+			List<KBEntity> entities = (List<KBEntity>) m
+					.invoke(currentModelFactory.newInstance());
+
+			for (KBEntity e : entities) {
+				knowledgeBase.add(e);
+			}
 
 		} catch (Exception e) {
 			logger.error("Error", e);
 		}
 	}
 
-	
 }
