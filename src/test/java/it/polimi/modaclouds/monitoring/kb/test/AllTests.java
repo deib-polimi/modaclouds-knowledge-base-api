@@ -16,7 +16,12 @@
  */
 package it.polimi.modaclouds.monitoring.kb.test;
 
+import it.polimi.modaclouds.monitoring.kb.api.Config;
+import it.polimi.modaclouds.monitoring.kb.api.KBConnector;
+import it.polimi.modaclouds.qos_models.monitoring_rules.ConfigurationException;
+
 import java.io.File;
+import java.io.FileNotFoundException;
 
 import org.apache.jena.fuseki.server.FusekiConfig;
 import org.apache.jena.fuseki.server.SPARQLServer;
@@ -34,12 +39,13 @@ public class AllTests {
 	private static SPARQLServer fusekiServer;
 
 	@BeforeClass
-	public static void init() {
+	public static void init() throws FileNotFoundException {
 		File datasetDir = new File("target/generated-test-resources/dataset");
 		deleteDir(datasetDir);
 		datasetDir.mkdirs();
 		ServerConfig config = FusekiConfig.configure(AllTests.class
 				.getResource("/moda_fuseki_configuration.ttl").getFile());
+		config.port = Config.getInstance().getKBServerPort();
 		fusekiServer = new SPARQLServer(config);
 		fusekiServer.start();
 	}

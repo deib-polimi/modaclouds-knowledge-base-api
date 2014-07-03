@@ -19,7 +19,6 @@ package it.polimi.modaclouds.monitoring.kb.test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 import it.polimi.modaclouds.monitoring.kb.api.KBConnector;
-import it.polimi.modaclouds.monitoring.objectstoreapi.ObjectStoreConnector;
 import it.polimi.modaclouds.qos_models.monitoring_ontology.MO;
 import it.polimi.modaclouds.qos_models.monitoring_ontology.MonitorableResource;
 import it.polimi.modaclouds.qos_models.monitoring_ontology.Parameter;
@@ -43,10 +42,7 @@ public class KBTest {
 
 	@BeforeClass
 	public static void init() {
-		ObjectStoreConnector objectStoreConnector = null;
 		try {
-			objectStoreConnector = ObjectStoreConnector.getInstance();
-			MO.setKnowledgeBaseURL(objectStoreConnector.getKBUrl());
 			kbConnector = KBConnector.getInstance();
 			kbConnector.setKbURL(new URL(MO.getKnowledgeBaseDataURL()));
 		} catch (MalformedURLException | FileNotFoundException e) {
