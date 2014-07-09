@@ -30,7 +30,7 @@ public class UploadDeploymentModel {
 	private static Logger logger = LoggerFactory
 			.getLogger(UploadDeploymentModel.class.getName());
 
-	private static final Class<? extends DeploymentModelFactory> currentModelFactory = BOCDeployment.class;
+	private static final Class<? extends DeploymentModelFactory> currentModelFactory = SofteamDeployment.class;
 
 	@SuppressWarnings("unchecked")
 	public static void main(String[] args) {
