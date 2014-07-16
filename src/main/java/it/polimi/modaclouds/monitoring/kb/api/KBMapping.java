@@ -16,12 +16,11 @@
  */
 package it.polimi.modaclouds.monitoring.kb.api;
 
-import it.polimi.modaclouds.qos_models.monitoring_ontology.KBEntity;
-import it.polimi.modaclouds.qos_models.monitoring_ontology.MO;
-
+import java.io.UnsupportedEncodingException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URLDecoder;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -62,11 +61,11 @@ public class KBMapping {
 		}
 	}
 
-	public static String toKB(String javaName, boolean usePrefix) {
+	public static String toKB(String javaName, String URIBase, String URIPrefix) {
 		String kbName = java2kb.get(javaName);
 		if (kbName == null)
 			kbName = javaName;
-		return (usePrefix ? (MO.prefix + ":") : MO.URI) + kbName;
+		return (URIPrefix != null ? (URIPrefix + ":") : URIBase) + kbName;
 	}
 
 	public static KBEntity toJava(Resource r, Model model) {
@@ -75,7 +74,7 @@ public class KBMapping {
 			try {
 				Class<? extends KBEntity> entityClass = getJavaClass(r, model);
 				entity = entityClass.newInstance();
-				entity.setUri(r.getURI());
+				entity.setId(getIdFromURI(r.getURI()));
 				StmtIterator stmtIterator = model
 						.listStatements(new MySelector(r));
 				Map<String, Object> properties = new HashMap<String, Object>();
@@ -100,14 +99,20 @@ public class KBMapping {
 					}
 				}
 				BeanUtils.populate(entity, properties);
-			} catch (InstantiationException | IllegalAccessException e) {
+			} catch (InstantiationException | IllegalAccessException | UnsupportedEncodingException | URISyntaxException e) {
 				logger.error(
 						"Error while creating a new instance of an entity", e);
 			} catch (InvocationTargetException e) {
 				logger.error("Error while populating entity");
-			}
+			} 
 		}
 		return entity;
+	}
+
+	private static String getIdFromURI(String uri)
+			throws UnsupportedEncodingException {
+		return URLDecoder.decode(uri.substring(uri.lastIndexOf("/") + 1),
+				"UTF-8");
 	}
 
 	private static void addProperty(String javaProperty, Object kbObject,
@@ -172,6 +177,5 @@ public class KBMapping {
 		}
 
 	}
-
 
 }
