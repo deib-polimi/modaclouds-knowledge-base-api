@@ -382,7 +382,7 @@ public class FusekiKBAPI {
 	}
 
 	public <T extends KBEntity> Set<T> getAll(Class<T> subjectEntityClass,
-			String property, URI objectEntity) {
+			String property, String objectEntityId) {
 		// TODO Auto-generated method stub
 		return null;
 	}
