@@ -48,14 +48,15 @@ public class KBMapping {
 
 	static { // these are lists
 		java2kb.put("locations", "location");
-		java2kb.put("targetResources", "targetResource");
+//		java2kb.put("targetResources", "targetResource");
 		java2kb.put("parameters", "parameter");
-		java2kb.put("instantiatedSDAs", "instantiatedSDA");
-		java2kb.put("calledMethods", "calledMethod");
+//		java2kb.put("instantiatedSDAs", "instantiatedSDA");
+//		java2kb.put("calledMethods", "calledMethod");
 		java2kb.put("requiredComponents", "requiredComponent");
 		java2kb.put("providedMethods", "providedMethod");
-		java2kb.put("instantiatedDCs", "instantiatedDC");
-		java2kb.put("availableAggregateFunctions", "availableAggregateFunction");
+		java2kb.put("monitoredResourcesIds", "monitoredResourceId");
+//		java2kb.put("instantiatedDCs", "instantiatedDC");
+//		java2kb.put("availableAggregateFunctions", "availableAggregateFunction");
 		for (String javaName : java2kb.keySet()) {
 			kb2java.put(java2kb.get(javaName), javaName);
 		}
