@@ -39,6 +39,7 @@ import com.hp.hpl.jena.rdf.model.Statement;
 import com.hp.hpl.jena.rdf.model.StmtIterator;
 import com.hp.hpl.jena.vocabulary.RDF;
 
+// TODO THIS CLASS IS STILL DEPENDENT OF QOS-MODELS
 public class KBMapping {
 
 	private static Map<String, String> java2kb = new HashMap<String, String>();
