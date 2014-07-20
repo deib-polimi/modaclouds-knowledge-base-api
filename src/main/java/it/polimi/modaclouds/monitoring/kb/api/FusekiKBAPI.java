@@ -366,8 +366,8 @@ public class FusekiKBAPI {
 		return entities;
 	}
 
-	public Set<KBEntity> getAll(Class<? extends KBEntity> entityClass) {
-		Set<KBEntity> entities = new HashSet<KBEntity>();
+	public <T extends KBEntity> Set<T> getAll(Class<T> entityClass) {
+		Set<T> entities = new HashSet<T>();
 		Model model = dataAccessor.getModel();
 		StmtIterator iter = model.listStatements(
 				null,
@@ -376,15 +376,15 @@ public class FusekiKBAPI {
 						entityClass.getSimpleName(), URIBase, null)));
 		while (iter.hasNext()) {
 			Resource r = iter.nextStatement().getSubject();
-			entities.add(KBMapping.toJava(r, model));
+			entities.add((T) KBMapping.toJava(r, model));
 		}
 		return entities;
 	}
 
 	public <T extends KBEntity> Set<T> getAll(Class<T> subjectEntityClass,
 			String property, String objectEntityId) {
-		// TODO Auto-generated method stub
-		return null;
+		// TODO TEMPORARY STUPID SOLUTION
+		return getAll(subjectEntityClass);
 	}
 
 }
