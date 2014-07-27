@@ -23,7 +23,7 @@ import java.util.UUID;
 public abstract class KBEntity {
 
 	public static final String uriBase = "http://www.modaclouds.eu/rdfs/1.0/entities#";
-	public static final String uriPrefix = "mo";
+	public static final String uriPrefix = "modaent";
 
 	private URI shortUri;
 	private URI uri;
