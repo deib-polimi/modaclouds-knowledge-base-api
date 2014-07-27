@@ -16,75 +16,64 @@
  */
 package it.polimi.modaclouds.monitoring.kb.api;
 
-import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.net.URLEncoder;
 import java.util.UUID;
 
 public abstract class KBEntity {
 
-	private String id;
+	public static final String uriBase = "http://www.modaclouds.eu/rdfs/1.0/entities#";
+	public static final String uriPrefix = "mo";
+
 	private URI shortUri;
 	private URI uri;
-	private String uriBase;
-	private String uriPrefix;
 
-	public KBEntity(String id) throws URISyntaxException {
-		uriBase = getURIBase();
-		if (!uriBase.endsWith("/"))
-			uriBase += "/";
-		uriPrefix = getURIPrefix();
-		setId(id);
-	}
-
-	public KBEntity() throws URISyntaxException {
-		this(UUID.randomUUID().toString());
-	}
-
-	public abstract String getURIBase();
-
-	public abstract String getURIPrefix();
-
-	public String getId() {
-		return id;
-	}
-
-	public void setId(String id) throws URISyntaxException {
-		this.id = id;
-		String encodedId;
+	public KBEntity() {
 		try {
-			encodedId = URLEncoder.encode(id, "UTF-8");
-			this.shortUri = new URI(uriPrefix + ":" + encodedId);
-			this.uri = new URI(uriBase + encodedId);
-		} catch (UnsupportedEncodingException e) {
-			throw new IllegalArgumentException(e);
+			String randomName = UUID.randomUUID().toString();
+			this.shortUri = new URI(uriPrefix + ":" + randomName);
+			this.uri = new URI(uriBase + randomName);
+		} catch (URISyntaxException e) {
+			e.printStackTrace();
 		}
 	}
 
-	public String getShortClassURI() {
-		return uriPrefix + ":" + this.getClass().getSimpleName();
-	}
-
-	public String getClassURI() {
-		return uriBase + this.getClass().getSimpleName();
+	/**
+	 * 
+	 * @param uri must not be a short uri
+	 */
+	void setURI(URI uri) {
+		try {
+			this.shortUri = new URI(uriPrefix + ":" + uri.getFragment());
+			this.uri = uri;
+		} catch (URISyntaxException e) {
+			e.printStackTrace();
+		}
 	}
 
 	public URI getUri() {
 		return uri;
 	}
 
+	String getShortClassURI() {
+		return uriPrefix + ":" + this.getClass().getSimpleName();
+	}
+
+	String getClassURI() {
+		return uriBase + this.getClass().getSimpleName();
+	}
+
+	URI getShortURI() {
+		return shortUri;
+	}
+
 	@Override
 	public int hashCode() {
 		final int prime = 31;
 		int result = 1;
-		result = prime * result + ((id == null) ? 0 : id.hashCode());
 		result = prime * result
 				+ ((shortUri == null) ? 0 : shortUri.hashCode());
 		result = prime * result + ((uri == null) ? 0 : uri.hashCode());
-		result = prime * result + ((uriBase == null) ? 0 : uriBase.hashCode());
-		result = prime * result
-				+ ((uriPrefix == null) ? 0 : uriPrefix.hashCode());
 		return result;
 	}
 
@@ -97,11 +86,6 @@ public abstract class KBEntity {
 		if (getClass() != obj.getClass())
 			return false;
 		KBEntity other = (KBEntity) obj;
-		if (id == null) {
-			if (other.id != null)
-				return false;
-		} else if (!id.equals(other.id))
-			return false;
 		if (shortUri == null) {
 			if (other.shortUri != null)
 				return false;
@@ -112,21 +96,12 @@ public abstract class KBEntity {
 				return false;
 		} else if (!uri.equals(other.uri))
 			return false;
-		if (uriBase == null) {
-			if (other.uriBase != null)
-				return false;
-		} else if (!uriBase.equals(other.uriBase))
-			return false;
-		if (uriPrefix == null) {
-			if (other.uriPrefix != null)
-				return false;
-		} else if (!uriPrefix.equals(other.uriPrefix))
-			return false;
 		return true;
 	}
 
-	public URI getShortURI() {
-		return shortUri;
+	@Override
+	public String toString() {
+		return "KBEntity [shortUri=" + shortUri + ", uri=" + uri + "]";
 	}
 
 }

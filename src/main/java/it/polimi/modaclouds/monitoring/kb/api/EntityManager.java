@@ -16,11 +16,9 @@
  */
 package it.polimi.modaclouds.monitoring.kb.api;
 
-import java.io.UnsupportedEncodingException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.net.URLDecoder;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -39,35 +37,18 @@ import com.hp.hpl.jena.rdf.model.Statement;
 import com.hp.hpl.jena.rdf.model.StmtIterator;
 import com.hp.hpl.jena.vocabulary.RDF;
 
-// TODO THIS CLASS IS STILL DEPENDENT OF QOS-MODELS
-public class KBMapping {
+public class EntityManager {
 
-	private static Map<String, String> java2kb = new HashMap<String, String>();
-	private static Map<String, String> kb2java = new HashMap<String, String>();
-	private static Logger logger = LoggerFactory.getLogger(KBMapping.class
-			.getName());
+	private static Logger logger = LoggerFactory.getLogger(EntityManager.class);
 
-	static { // these are lists
-		java2kb.put("locations", "location");
-//		java2kb.put("targetResources", "targetResource");
-		java2kb.put("parameters", "parameter");
-//		java2kb.put("instantiatedSDAs", "instantiatedSDA");
-//		java2kb.put("calledMethods", "calledMethod");
-		java2kb.put("requiredComponents", "requiredComponent");
-		java2kb.put("providedMethods", "providedMethod");
-		java2kb.put("monitoredResourcesIds", "monitoredResourceId");
-//		java2kb.put("instantiatedDCs", "instantiatedDC");
-//		java2kb.put("availableAggregateFunctions", "availableAggregateFunction");
-		for (String javaName : java2kb.keySet()) {
-			kb2java.put(java2kb.get(javaName), javaName);
-		}
-	}
+	// THIS INFO SHOULD BE SAVED IN THE KB
+	private static Set<String> setProperties = new HashSet<String>();
 
-	public static String toKB(String javaName, String URIBase, String URIPrefix) {
-		String kbName = java2kb.get(javaName);
-		if (kbName == null)
-			kbName = javaName;
-		return (URIPrefix != null ? (URIPrefix + ":") : URIBase) + kbName;
+	static { // NEED TO BREAK THIS DEPENDENCY WITH MODACLOUDS ONTOLOGY
+		setProperties.add("requiredComponents");
+		setProperties.add("providedMethods");
+		setProperties.add("monitoredResources");
+		setProperties.add("inputResources");
 	}
 
 	public static KBEntity toJava(Resource r, Model model) {
@@ -76,9 +57,9 @@ public class KBMapping {
 			try {
 				Class<? extends KBEntity> entityClass = getJavaClass(r, model);
 				entity = entityClass.newInstance();
-				entity.setId(getIdFromURI(r.getURI()));
+				entity.setURI(new URI(r.getURI()));
 				StmtIterator stmtIterator = model
-						.listStatements(new MySelector(r));
+						.listStatements(new SkipTypeSelector(r));
 				Map<String, Object> properties = new HashMap<String, Object>();
 				while (stmtIterator.hasNext()) {
 					Statement stmt = stmtIterator.nextStatement();
@@ -86,6 +67,7 @@ public class KBMapping {
 					String javaProperty = toJavaName(stmt.getPredicate()
 							.toString());
 					if (rdfObject.isResource()) {
+						// TODO add the URI instead of a KBEntity
 						Resource resourceObject = rdfObject.asResource();
 						KBEntity kbObject = toJava(resourceObject, model);
 						addProperty(javaProperty, kbObject, properties);
@@ -101,21 +83,22 @@ public class KBMapping {
 					}
 				}
 				BeanUtils.populate(entity, properties);
-			} catch (InstantiationException | IllegalAccessException | UnsupportedEncodingException | URISyntaxException e) {
+			} catch (InstantiationException | IllegalAccessException
+					| URISyntaxException e) {
 				logger.error(
 						"Error while creating a new instance of an entity", e);
 			} catch (InvocationTargetException e) {
 				logger.error("Error while populating entity");
-			} 
+			}
 		}
 		return entity;
 	}
 
-	private static String getIdFromURI(String uri)
-			throws UnsupportedEncodingException {
-		return URLDecoder.decode(uri.substring(uri.lastIndexOf("/") + 1),
-				"UTF-8");
-	}
+//	private static String getIdFromURI(String uri)
+//			throws UnsupportedEncodingException {
+//		return URLDecoder.decode(uri.substring(uri.lastIndexOf("/") + 1),
+//				"UTF-8");
+//	}
 
 	private static void addProperty(String javaProperty, Object kbObject,
 			Map<String, Object> properties) {
@@ -131,8 +114,10 @@ public class KBMapping {
 		}
 	}
 
+	// TODO need to find another way: example, use reflections with the java
+	// class and instance of
 	private static boolean isSet(String javaProperty) {
-		return java2kb.keySet().contains(javaProperty);
+		return setProperties.contains(javaProperty);
 	}
 
 	private static String toJavaName(String stringURI) {
@@ -140,9 +125,7 @@ public class KBMapping {
 		try {
 			URI uri = new URI(stringURI);
 			String[] segments = uri.getPath().split("/");
-			javaName = kb2java.get(segments[segments.length - 1]);
-			if (javaName == null)
-				javaName = segments[segments.length - 1];
+			javaName = segments[segments.length - 1];
 		} catch (URISyntaxException e) {
 			logger.error("Error while converting uri to java name", e);
 		}
@@ -166,9 +149,17 @@ public class KBMapping {
 		return objectClass;
 	}
 
-	private static class MySelector extends SimpleSelector {
+	static <T extends KBEntity> String getKBClassURI(Class<T> javaClass) {
+		return KBEntity.uriBase + javaClass.getSimpleName();
+	}
 
-		public MySelector(Resource subject) {
+	static String getKBPropertyURI(String property) {
+		return KBEntity.uriBase + property;
+	}
+
+	private static class SkipTypeSelector extends SimpleSelector {
+
+		public SkipTypeSelector(Resource subject) {
 			super();
 			this.subject = subject;
 		}

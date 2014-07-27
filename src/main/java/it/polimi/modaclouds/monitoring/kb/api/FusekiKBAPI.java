@@ -47,19 +47,13 @@ public class FusekiKBAPI {
 
 	private Logger logger = LoggerFactory.getLogger(FusekiKBAPI.class);
 
-	// TODO THIS IS WRONG, THE URIS AND NAMESPACES SHOULD BE DEFINED ONLY IN
-	// CLASSES EXTENDING KBENTITY
-	private String URIBase = null;
-	private String URIPrefix = null;
-
 	private static final int DELETE_DATA_INDEX = 0;
 	private static final int INSERT_DATA_INDEX = 1;
 	private static final int DELETE_INDEX = 2;
 	private static final int INSERT_INDEX = 3;
 	private static final int WHERE_DELETE_INDEX = 4;
 	private static final int WHERE_INSERT_INDEX = 5;
-	
-	
+
 	/**
 	 * Example url: http://localhost:3030/modaclouds/kb
 	 * 
@@ -74,22 +68,6 @@ public class FusekiKBAPI {
 	private String[] getEmptyQueryBody() {
 		String[] queryBody = { "", "", "", "", "", "" };
 		return queryBody;
-	}
-
-	public void setURIBase(String URIBase) {
-		this.URIBase = URIBase;
-	}
-
-	public String getURIBase() {
-		return URIBase;
-	}
-
-	public void setURIPrefix(String URIPrefix) {
-		this.URIPrefix = URIPrefix;
-	}
-
-	public String getURIPrefix() {
-		return URIPrefix;
 	}
 
 	private DatasetAccessor dataAccessor;
@@ -113,16 +91,16 @@ public class FusekiKBAPI {
 	}
 
 	public KBEntity getEntityByURI(URI uri) {
+		// TODO avoid downloading the entire model
 		Model model = dataAccessor.getModel();
 		Resource r = ResourceFactory.createResource(uri.toString());
-		KBEntity entity = KBMapping.toJava(r, model);
+		KBEntity entity = EntityManager.toJava(r, model);
 		return entity;
 	}
 
 	/**
-	 * Adds the entity in the KB and, recursively, all related properties. If
-	 * the entity or any child entity already exists in the KB, the entity will
-	 * be updated.
+	 * Adds the entity in the KB. If the entity already exists in the KB, the
+	 * entity will be updated.
 	 * 
 	 * @param entity
 	 */
@@ -150,7 +128,8 @@ public class FusekiKBAPI {
 	}
 
 	public void deleteEntityByURI(URI uri) {
-		// TODO not only this triple should be cancelled!!
+		// TODO delete all triples, not only this. Probably "uri ?p ?o" should
+		// be ok
 		String queryString = "DELETE WHERE { <" + uri + "> <"
 				+ RDF.type.getURI() + "> ?o . }";
 		logger.info("Prepared delete Query:\n" + queryString);
@@ -161,14 +140,15 @@ public class FusekiKBAPI {
 		execUpdate.execute();
 	}
 
-	
 	public void deleteAll(Set<? extends KBEntity> entities) {
+		// TODO only one query should be done
 		for (KBEntity entity : entities) {
 			deleteEntityByURI(entity.getUri());
 		}
 	}
 
 	public void addAll(Set<? extends KBEntity> entities) {
+		// TODO only one query should be done
 		for (KBEntity entity : entities) {
 			add(entity);
 		}
@@ -176,30 +156,26 @@ public class FusekiKBAPI {
 
 	public <T extends KBEntity> Set<String> getURIs(Class<T> entityClass) {
 		Set<String> uris = new HashSet<String>();
+		// TODO avoid downloading the entire model
 		Model model = dataAccessor.getModel();
-		StmtIterator iter = model.listStatements(
-				null,
-				RDF.type,
-				ResourceFactory.createResource(KBMapping.toKB(
-						entityClass.getSimpleName(), URIBase, null)));
+		StmtIterator iter = model.listStatements(null, RDF.type,
+				ResourceFactory.createResource(EntityManager
+						.getKBClassURI(entityClass)));
 		while (iter.hasNext()) {
 			uris.add(iter.nextStatement().getSubject().getURI());
 		}
 		return uris;
 	}
 
-	
-
-	
-
 	private String prepareAddQuery(KBEntity entity) {
 		Set<KBEntity> explored = new HashSet<KBEntity>();
 		VariableGenerator varGen = new VariableGenerator();
 		String[] queryBody = prepareAddQueryBody(entity, explored, varGen);
-		String queryString = "PREFIX " + URIPrefix + ":<" + URIBase + "> "
-				+ "DELETE DATA { " + queryBody[DELETE_DATA_INDEX]
-				+ " } ; INSERT DATA { " + queryBody[INSERT_DATA_INDEX]
-				+ " } ; DELETE { " + queryBody[DELETE_INDEX] + " } WHERE { "
+		String queryString = "PREFIX " + KBEntity.uriPrefix + ":<"
+				+ KBEntity.uriBase + "> " + "DELETE DATA { "
+				+ queryBody[DELETE_DATA_INDEX] + " } ; INSERT DATA { "
+				+ queryBody[INSERT_DATA_INDEX] + " } ; DELETE { "
+				+ queryBody[DELETE_INDEX] + " } WHERE { "
 				+ queryBody[WHERE_DELETE_INDEX] + " } ; INSERT { "
 				+ queryBody[INSERT_INDEX] + " } WHERE { "
 				+ queryBody[WHERE_INSERT_INDEX] + " } ";
@@ -209,12 +185,16 @@ public class FusekiKBAPI {
 	@SuppressWarnings("unchecked")
 	private String[] prepareAddQueryBody(KBEntity entity,
 			Set<KBEntity> explored, VariableGenerator varGen) {
+		// explored was used to avoid loops when recursively exploring related
+		// entities,
+		// not useful anymore since we are not gonna recurevely add entities
+		// anymore (using URIs)
 		String[] queryBody = getEmptyQueryBody();
 		if (!explored.contains(entity)) {
 			explored.add(entity);
 			Map<String, Object> properties = getProperties(entity);
 			KBEntity entityFromKB = getEntityByURI(entity.getUri());
-			if (entityFromKB == null) { // entity does not exist
+			if (entityFromKB == null) { // The entity does not exist in the KB, creating new instance...
 				addNewEntity(entity, queryBody);
 				for (String property : properties.keySet()) {
 					Object value = properties.get(property);
@@ -223,7 +203,7 @@ public class FusekiKBAPI {
 								queryBody, varGen);
 					}
 				}
-			} else { // entity already exists
+			} else { // The entity already exists in the KB, updating...
 				Map<String, Object> entityFromKBProperties = getProperties(entityFromKB);
 				for (String property : properties.keySet()) {
 					Object entityFromKBValue = entityFromKBProperties
@@ -274,12 +254,12 @@ public class FusekiKBAPI {
 		if (value instanceof Set<?>) {
 			Set<?> objects = (Set<?>) value;
 			for (Object object : objects) {
-				String[] temp = prepareAddQueryBody(entity, property, object,
+				String[] temp = prepareAddPropertyQueryBody(entity, property, object,
 						explored, varGen);
 				concatBodies(queryBody, temp);
 			}
 		} else {
-			String[] temp = prepareAddQueryBody(entity, property, value,
+			String[] temp = prepareAddPropertyQueryBody(entity, property, value,
 					explored, varGen);
 			concatBodies(queryBody, temp);
 		}
@@ -289,10 +269,11 @@ public class FusekiKBAPI {
 		queryBody[INSERT_DATA_INDEX] += prepareAboutTriple(entity);
 	}
 
-	private String[] prepareAddQueryBody(KBEntity subject, String property,
+	
+	private String[] prepareAddPropertyQueryBody(KBEntity subject, String property,
 			Object object, Set<KBEntity> explored, VariableGenerator varGen) {
 		String[] queryBody = getEmptyQueryBody();
-		if (object instanceof KBEntity) {
+		if (object instanceof KBEntity) { //NOT HAPPENING ANYMORE WITH URIs
 			KBEntity objectEntity = (KBEntity) object;
 			queryBody[INSERT_DATA_INDEX] += prepareTriple(subject, property,
 					objectEntity);
@@ -308,14 +289,15 @@ public class FusekiKBAPI {
 	private String prepareLiteralTriple(KBEntity entity, String property,
 			String literal) {
 		return entity.getShortURI() + " "
-				+ KBMapping.toKB(property, URIBase, URIPrefix) + " \""
-				+ literal + "\" . ";
+				+ EntityManager.getKBPropertyURI(property) + " \"" + literal
+				+ "\" . ";
 	}
 
+	// not useful anymore, using URIs as objects
 	private String prepareTriple(KBEntity entity, String property,
 			KBEntity value) {
 		return entity.getShortURI() + " "
-				+ KBMapping.toKB(property, URIBase, URIPrefix) + " "
+				+ EntityManager.getKBPropertyURI(property) + " "
 				+ value.getShortURI() + " . ";
 	}
 
@@ -326,10 +308,16 @@ public class FusekiKBAPI {
 	private String prepareVarObjectTriple(KBEntity entity, String property,
 			String oVar) {
 		return entity.getShortURI() + " "
-				+ KBMapping.toKB(property, URIBase, URIPrefix) + " " + oVar
-				+ " . ";
+				+ EntityManager.getKBPropertyURI(property) + " " + oVar + " . ";
 	}
 
+	/**
+	 * get all properties except for those in KBEntity class, which is meta data
+	 * and not needed to be persisted as RDF triples
+	 * 
+	 * @param object
+	 * @return
+	 */
 	private Map<String, Object> getProperties(Object object) {
 		Map<String, Object> properties = new HashMap<String, Object>();
 		try {
@@ -346,6 +334,7 @@ public class FusekiKBAPI {
 		return properties;
 	}
 
+	// concatenate strings
 	private void concatBodies(String[] body1, String[] body2) {
 		assert body1.length == body2.length;
 		for (int i = 0; i < body1.length; i++) {
@@ -355,35 +344,35 @@ public class FusekiKBAPI {
 
 	public Set<KBEntity> getByPropertyValue(String property, String value) {
 		Set<KBEntity> entities = new HashSet<KBEntity>();
+		// TODO avoid downloading entire model
 		Model model = dataAccessor.getModel();
-		StmtIterator iter = model
-				.listStatements(null, ResourceFactory.createProperty(KBMapping
-						.toKB(property, URIBase, null)), value);
+		StmtIterator iter = model.listStatements(null, ResourceFactory
+				.createProperty(EntityManager.getKBPropertyURI(property)),
+				value);
 		while (iter.hasNext()) {
 			Resource r = iter.nextStatement().getSubject();
-			entities.add(KBMapping.toJava(r, model));
+			entities.add(EntityManager.toJava(r, model));
 		}
 		return entities;
 	}
 
 	public <T extends KBEntity> Set<T> getAll(Class<T> entityClass) {
 		Set<T> entities = new HashSet<T>();
+		// TODO avoid downloading entire model
 		Model model = dataAccessor.getModel();
-		StmtIterator iter = model.listStatements(
-				null,
-				RDF.type,
-				ResourceFactory.createResource(KBMapping.toKB(
-						entityClass.getSimpleName(), URIBase, null)));
+		StmtIterator iter = model.listStatements(null, RDF.type,
+				ResourceFactory.createResource(EntityManager
+						.getKBClassURI(entityClass)));
 		while (iter.hasNext()) {
 			Resource r = iter.nextStatement().getSubject();
-			entities.add((T) KBMapping.toJava(r, model));
+			entities.add((T) EntityManager.toJava(r, model));
 		}
 		return entities;
 	}
 
 	public <T extends KBEntity> Set<T> getAll(Class<T> subjectEntityClass,
-			String property, String objectEntityId) {
-		// TODO TEMPORARY STUPID SOLUTION
+			String property, String object) {
+		// TODO TEMPORARY STUPID SOLUTION, not filtering by property object
 		return getAll(subjectEntityClass);
 	}
 
