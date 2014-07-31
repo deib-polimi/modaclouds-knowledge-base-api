@@ -19,8 +19,10 @@ package it.polimi.modaclouds.monitoring.kb.api;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -28,34 +30,25 @@ import org.apache.commons.beanutils.BeanUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.hp.hpl.jena.datatypes.xsd.XSDDatatype;
 import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.RDFNode;
 import com.hp.hpl.jena.rdf.model.Resource;
 import com.hp.hpl.jena.rdf.model.SimpleSelector;
 import com.hp.hpl.jena.rdf.model.Statement;
 import com.hp.hpl.jena.rdf.model.StmtIterator;
+import com.hp.hpl.jena.rdf.model.impl.PropertyImpl;
+import com.hp.hpl.jena.rdf.model.impl.ResourceImpl;
 import com.hp.hpl.jena.vocabulary.RDF;
 
 public class EntityManager {
 
 	private static Logger logger = LoggerFactory.getLogger(EntityManager.class);
 
-	// THIS INFO SHOULD BE SAVED IN THE KB
-	private static Set<String> setProperties = new HashSet<String>();
-
-	static { // NEED TO BREAK THIS DEPENDENCY WITH MODACLOUDS ONTOLOGY
-		setProperties.add("requiredComponents");
-		setProperties.add("providedMethods");
-		setProperties.add("monitoredResources");
-		setProperties.add("inputResources");
-	}
-
-	public static KBEntity toJava(Resource r, Model model) {
+	public static KBEntity toJava(Resource r, Model model, String class_package) {
 		KBEntity entity = null;
 		if (model.contains(r, null, (RDFNode) null)) {
 			try {
-				Class<? extends KBEntity> entityClass = getJavaClass(r, model);
+				Class<? extends KBEntity> entityClass = getJavaClass(r, model, class_package);
 				entity = entityClass.newInstance();
 				entity.setURI(new URI(r.getURI()));
 				StmtIterator stmtIterator = model
@@ -66,21 +59,7 @@ public class EntityManager {
 					RDFNode rdfObject = stmt.getObject();
 					String javaProperty = toJavaName(stmt.getPredicate()
 							.toString());
-					if (rdfObject.isResource()) {
-						// TODO add the URI instead of a KBEntity
-						Resource resourceObject = rdfObject.asResource();
-						KBEntity kbObject = toJava(resourceObject, model);
-						addProperty(javaProperty, kbObject, properties);
-					} else if (rdfObject.asLiteral().getDatatype() == null) { // plain
-						addProperty(javaProperty, rdfObject.asLiteral()
-								.getValue(), properties);
-					} else if (rdfObject.asLiteral().getDatatype() == XSDDatatype.XSDboolean) {
-						addProperty(javaProperty, rdfObject.asLiteral()
-								.getBoolean(), properties);
-					} else if (rdfObject.asLiteral().getDatatype() == XSDDatatype.XSDint) {
-						addProperty(javaProperty, rdfObject.asLiteral()
-								.getInt(), properties);
-					}
+					addProperty(model, stmt, javaProperty, rdfObject, properties);
 				}
 				BeanUtils.populate(entity, properties);
 			} catch (InstantiationException | IllegalAccessException
@@ -94,38 +73,79 @@ public class EntityManager {
 		return entity;
 	}
 
-//	private static String getIdFromURI(String uri)
-//			throws UnsupportedEncodingException {
-//		return URLDecoder.decode(uri.substring(uri.lastIndexOf("/") + 1),
-//				"UTF-8");
-//	}
-
-	private static void addProperty(String javaProperty, Object kbObject, Map<String, Object> properties) { 
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+	private static void addProperty(Model model, Statement statement, String javaProperty, Object kbObject, Map<String, Object> properties) { 
 		//add control for List and Map, and update the Set control. Controllare se sono seq, bag o map nel file RDF
-		if (isSet(javaProperty)) {
-			Set set = (Set) properties.get(javaProperty);
-			if (set == null) {
-				set = new HashSet();
-				properties.put(javaProperty, set);
-			}
-			set.add(kbObject);
+		if(statement.getObject().isResource()){
+			StmtIterator stmtIterator = model.listStatements(statement.getObject().asResource(), RDF.type, (RDFNode) null);
+			while (stmtIterator.hasNext()) {
+				Statement innerStatement = stmtIterator.next();
+				if(innerStatement.getObject().asResource().equals(RDF.Bag)){
+					Set set = (Set) properties.get(javaProperty);
+					if (set == null) {
+						set = new HashSet();
+						properties.put(javaProperty, set);
+					}
+					StmtIterator stmtIterator2 = model.listStatements(new SkipTypeSelector(statement.getObject().asResource()));
+					while (stmtIterator2.hasNext()){
+						Statement innerStatement2 = stmtIterator2.next();
+						set.add(innerStatement2.getObject().toString());
+
+					}	
+					properties.put(javaProperty, set);
+
+				} else if(innerStatement.getObject().asResource().equals(RDF.Seq)) {
+					StmtIterator stmtIterator2 = model.listStatements(new SkipTypeSelector(statement.getObject().asResource()));
+					List list = (List) properties.get(javaProperty);
+					if (list == null) {
+						list = new ArrayList<>();
+						properties.put(javaProperty, list);
+					}
+					while (stmtIterator2.hasNext()){
+						Statement innerStatement2 = stmtIterator2.next();
+						list.add(innerStatement2.getObject().toString());
+					}		
+					properties.put(javaProperty, list);
+
+				} else if (innerStatement.getObject().asResource().equals(new ResourceImpl(KBEntity.uriBase + "Map"))) {
+					StmtIterator stmtIterator2 = model.listStatements(new SkipTypeSelector(statement.getObject().asResource()));
+					Map map = (Map) properties.get(javaProperty);
+					if (map == null) {
+						map = new HashMap<>();
+						properties.put(javaProperty, map);
+					}
+					while (stmtIterator2.hasNext()){
+						Statement innerStatement2 = stmtIterator2.next();
+						StmtIterator stmtIterator3 = model.listStatements(innerStatement2.getObject().asResource(), null, (RDFNode) null);
+						String key = new String();
+						String value = new String();
+						while (stmtIterator3.hasNext()){
+							Statement innerStatement3 = stmtIterator3.next();
+							if(innerStatement3.getPredicate().equals(new PropertyImpl(KBEntity.uriBase + "key")))
+								key = innerStatement3.getObject().toString();
+							if(innerStatement3.getPredicate().equals(new PropertyImpl(KBEntity.uriBase + "value")))
+								value = innerStatement3.getObject().toString();	
+						}
+						map.put(key, value);
+					}		
+					properties.put(javaProperty, map);
+				}	
+			}			
 		} else {
 			properties.put(javaProperty, kbObject);
 		}
-	}
-
-	// TODO need to find another way: example, use reflections with the java
-	// class and instance of
-	private static boolean isSet(String javaProperty) {
-		return setProperties.contains(javaProperty);
+		System.out.println();
 	}
 
 	private static String toJavaName(String stringURI) {
 		String javaName = null;
 		try {
 			URI uri = new URI(stringURI);
-			String[] segments = uri.getPath().split("/");
-			javaName = segments[segments.length - 1];
+			String uriStr = uri.toString();
+			if(uri.toString().contains("#"))
+				javaName = uriStr.substring(uriStr.lastIndexOf("#") + 1, uriStr.length());
+			else
+				javaName = uriStr.substring(uriStr.lastIndexOf("/") + 1, uriStr.length());
 		} catch (URISyntaxException e) {
 			logger.error("Error while converting uri to java name", e);
 		}
@@ -133,16 +153,14 @@ public class EntityManager {
 	}
 
 	@SuppressWarnings("unchecked")
-	private static Class<? extends KBEntity> getJavaClass(Resource resource,
-			Model model) {
+	private static Class<? extends KBEntity> getJavaClass(Resource resource, Model model, String class_package) {
 		Resource objectType = model.listObjectsOfProperty(resource, RDF.type)
 				.next().asResource();
 		String className = toJavaName(objectType.getURI());
 		Class<? extends KBEntity> objectClass = null;
 		try {
 			objectClass = (Class<? extends KBEntity>) Class
-					.forName("it.polimi.modaclouds.qos_models.monitoring_ontology."
-							+ className);
+					.forName(class_package + className);
 		} catch (ClassNotFoundException e) {
 			logger.error("error while creating class from name", e);
 		}

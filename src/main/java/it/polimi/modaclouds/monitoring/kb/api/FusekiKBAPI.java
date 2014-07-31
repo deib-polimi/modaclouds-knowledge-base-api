@@ -70,6 +70,10 @@ public class FusekiKBAPI {
 				   map element [id, value] .  
 				   map element [id, value] .
 	 */
+	
+	private DatasetAccessor dataAccessor;
+	private String knowledgeBaseURL;
+	private String class_package;
 
 	/**
 	 * Example url: http://localhost:3030/modaclouds/kb
@@ -78,18 +82,22 @@ public class FusekiKBAPI {
 	 */
 	public FusekiKBAPI(String knowledgeBaseURL) {
 		this.knowledgeBaseURL = knowledgeBaseURL;
-		dataAccessor = DatasetAccessorFactory
-				.createHTTP(getKnowledgeBaseDataURL());
+		dataAccessor = DatasetAccessorFactory.createHTTP(getKnowledgeBaseDataURL());
+		this.class_package = "it.polimi.modaclouds.qos_models.monitoring_ontology.";
+	}
+	
+	public FusekiKBAPI(String knowledgeBaseURL, String class_package) {
+		this.knowledgeBaseURL = knowledgeBaseURL;
+		dataAccessor = DatasetAccessorFactory.createHTTP(getKnowledgeBaseDataURL());
+		if(!class_package.endsWith("."))
+			class_package = class_package + ".";
+		this.class_package = class_package;
 	}
 
 	private String[] getEmptyQueryBody() {
 		String[] queryBody = { "", "", "", "", "", "" };
 		return queryBody;
 	}
-
-	private DatasetAccessor dataAccessor;
-
-	private String knowledgeBaseURL;
 
 	public String getKnowledgeBaseURL() {
 		return knowledgeBaseURL;
@@ -111,7 +119,7 @@ public class FusekiKBAPI {
 		// TODO avoid downloading the entire model
 		Model model = dataAccessor.getModel();
 		Resource r = ResourceFactory.createResource(uri.toString());
-		KBEntity entity = EntityManager.toJava(r, model);
+		KBEntity entity = EntityManager.toJava(r, model, this.class_package);
 		return entity;
 	}
 
@@ -361,7 +369,11 @@ public class FusekiKBAPI {
 				i = 0;
 				Set<?> keys = mapObjects.keySet();
 				for(Object key : keys){
-					queryBody[INSERT_DATA_INDEX] += prepareLiteralTriple(mapAnonId, RDF.li(i).toString(), mapObjects.get(key).toString());
+					String internalAnonId = new AnonId(UUID.randomUUID().toString()).toString();
+					internalAnonId = KBEntity.uriBase + internalAnonId;
+					queryBody[INSERT_DATA_INDEX] += prepareLiteralTriple(mapAnonId, RDF.li(i).toString(), internalAnonId);
+					queryBody[INSERT_DATA_INDEX] += prepareLiteralTriple(internalAnonId, KBEntity.uriBase + "key", key.toString());
+					queryBody[INSERT_DATA_INDEX] += prepareLiteralTriple(internalAnonId, KBEntity.uriBase + "value", mapObjects.get(key).toString());
 					i++;
 				}			
 				break;
@@ -443,7 +455,7 @@ public class FusekiKBAPI {
 					value);
 			while (iter.hasNext()) {
 				Resource r = iter.nextStatement().getSubject();
-				entities.add(EntityManager.toJava(r, model));
+				entities.add(EntityManager.toJava(r, model, this.class_package));
 			}
 		} else {
 			StmtIterator iter = model.listStatements(null, ResourceFactory
@@ -451,7 +463,7 @@ public class FusekiKBAPI {
 					(RDFNode) null);
 			while (iter.hasNext()) {
 				Resource r = iter.nextStatement().getSubject();
-				entities.add(EntityManager.toJava(r, model));
+				entities.add(EntityManager.toJava(r, model, this.class_package));
 			}
 		}
 		return entities;
@@ -467,7 +479,7 @@ public class FusekiKBAPI {
 						.getKBClassURI(entityClass)));
 		while (iter.hasNext()) {
 			Resource r = iter.nextStatement().getSubject();
-			entities.add((T) EntityManager.toJava(r, model));
+			entities.add((T) EntityManager.toJava(r, model, this.class_package));
 		}
 		return entities;
 	}
