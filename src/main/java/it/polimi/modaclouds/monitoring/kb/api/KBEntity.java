@@ -55,18 +55,18 @@ public abstract class KBEntity {
 		return uri;
 	}
 
-	String getShortClassURI() {
+	public String getShortClassURI() {
 		return uriPrefix + ":" + this.getClass().getSimpleName();
 	}
 
-	String getClassURI() {
+	public String getClassURI() {
 		return uriBase + this.getClass().getSimpleName();
 	}
 
-	URI getShortURI() {
+	public URI getShortURI() {
 		return shortUri;
 	}
-
+	
 	@Override
 	public int hashCode() {
 		final int prime = 31;

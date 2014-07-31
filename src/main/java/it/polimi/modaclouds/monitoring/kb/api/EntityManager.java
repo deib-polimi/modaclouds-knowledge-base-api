@@ -100,8 +100,8 @@ public class EntityManager {
 //				"UTF-8");
 //	}
 
-	private static void addProperty(String javaProperty, Object kbObject,
-			Map<String, Object> properties) {
+	private static void addProperty(String javaProperty, Object kbObject, Map<String, Object> properties) { 
+		//add control for List and Map, and update the Set control. Controllare se sono seq, bag o map nel file RDF
 		if (isSet(javaProperty)) {
 			Set set = (Set) properties.get(javaProperty);
 			if (set == null) {
@@ -153,7 +153,7 @@ public class EntityManager {
 		return KBEntity.uriBase + javaClass.getSimpleName();
 	}
 
-	static String getKBPropertyURI(String property) {
+	public static String getKBPropertyURI(String property) {
 		return KBEntity.uriBase + property;
 	}
 
