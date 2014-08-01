@@ -40,7 +40,9 @@ import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.RDFNode;
 import com.hp.hpl.jena.rdf.model.Resource;
 import com.hp.hpl.jena.rdf.model.ResourceFactory;
+import com.hp.hpl.jena.rdf.model.Statement;
 import com.hp.hpl.jena.rdf.model.StmtIterator;
+import com.hp.hpl.jena.rdf.model.impl.ResourceImpl;
 import com.hp.hpl.jena.update.UpdateExecutionFactory;
 import com.hp.hpl.jena.update.UpdateFactory;
 import com.hp.hpl.jena.update.UpdateProcessor;
@@ -70,7 +72,7 @@ public class FusekiKBAPI {
 				   map element [id, value] .  
 				   map element [id, value] .
 	 */
-	
+
 	private DatasetAccessor dataAccessor;
 	private String knowledgeBaseURL;
 	private String class_package;
@@ -85,7 +87,7 @@ public class FusekiKBAPI {
 		dataAccessor = DatasetAccessorFactory.createHTTP(getKnowledgeBaseDataURL());
 		this.class_package = "it.polimi.modaclouds.qos_models.monitoring_ontology.";
 	}
-	
+
 	public FusekiKBAPI(String knowledgeBaseURL, String class_package) {
 		this.knowledgeBaseURL = knowledgeBaseURL;
 		dataAccessor = DatasetAccessorFactory.createHTTP(getKnowledgeBaseDataURL());
@@ -155,8 +157,32 @@ public class FusekiKBAPI {
 	public void deleteEntityByURI(URI uri) {
 		// TODO delete all triples, not only this. Probably "uri ?p ?o" should
 		// be ok
-		String queryString = "DELETE WHERE { <" + uri + "> <"
-				+ RDF.type.getURI() + "> ?o . }";
+		String queryString = "PREFIX rdf:<http://www.w3.org/1999/02/22-rdf-syntax-ns#> "
+				+ "PREFIX mc:<http://www.modaclouds.eu/rdfs/1.0/entities#> "
+				+ "DELETE { "
+				+ "<" + uri + "> ?p ?o . "
+				+ "?o rdf:type rdf:Seq . "
+				+ "?o rdf:type rdf:Bag . "
+				+ "?o rdf:type mc:Map . "
+				+ "?o ?p1 ?o1 . "
+				+ "?o1 ?p2 ?o2 . "
+				+ "} "
+				+ "WHERE { "
+				+ "<" + uri + "> ?p ?o . "
+				+ "OPTIONAL { "
+				+ "?o rdf:type rdf:Seq . "
+				+ "?o ?p1 ?o1 . "
+				+ "}"
+				+ "OPTIONAL { "
+				+ "?o rdf:type rdf:Bag . "
+				+ "?o ?p1 ?o1 . "
+				+ "}"
+				+ "OPTIONAL { "
+				+ "?o rdf:type mc:Map . "
+				+ "?o ?p1 ?o1 . "
+				+ "?o1 ?p2 ?o2 . "
+				+ "}"
+				+ "}";
 		logger.info("Prepared delete Query:\n" + queryString);
 		UpdateRequest query = UpdateFactory.create(queryString,
 				Syntax.syntaxSPARQL_11);
@@ -183,9 +209,8 @@ public class FusekiKBAPI {
 		Set<String> uris = new HashSet<String>();
 		// TODO avoid downloading the entire model
 		Model model = dataAccessor.getModel();
-		StmtIterator iter = model.listStatements(null, RDF.type,
-				ResourceFactory.createResource(EntityManager
-						.getKBClassURI(entityClass)));
+		StmtIterator iter = model.listStatements(null, RDF.type,ResourceFactory.createResource(EntityManager
+				.getKBClassURI(entityClass)));
 		while (iter.hasNext()) {
 			uris.add(iter.nextStatement().getSubject().getURI());
 		}
@@ -194,8 +219,7 @@ public class FusekiKBAPI {
 
 	private String prepareAddQuery(KBEntity entity) {
 		Set<KBEntity> explored = new HashSet<KBEntity>();
-		VariableGenerator varGen = new VariableGenerator();
-		String[] queryBody = prepareAddQueryBody(entity, explored, varGen);
+		String[] queryBody = prepareAddQueryBody(entity, explored);
 		String queryString = "PREFIX " + KBEntity.uriPrefix + ":<"
 				+ KBEntity.uriBase + "> " + "DELETE DATA { "
 				+ queryBody[DELETE_DATA_INDEX] + " } ; INSERT DATA { "
@@ -207,8 +231,7 @@ public class FusekiKBAPI {
 		return queryString;
 	}
 
-	private String[] prepareAddQueryBody(KBEntity entity,
-			Set<KBEntity> explored, VariableGenerator varGen) {
+	private String[] prepareAddQueryBody(KBEntity entity, Set<KBEntity> explored) {
 		// explored was used to avoid loops when recursively exploring related
 		// entities,
 		// not useful anymore since we are not gonna recurevely add entities
@@ -270,41 +293,45 @@ public class FusekiKBAPI {
 
 		String[] queryBody = getEmptyQueryBody();
 		int i = 0;
-		switch (varType) {
-		case SET:
-			Set<?> setObjects = (Set<?>) object;
-			queryBody[DELETE_INDEX] += prepareLiteralTriple(subject.getUri().toString(), EntityManager.getKBPropertyURI(property).toString(), anonIdUri);
-			queryBody[DELETE_INDEX] += prepareLiteralTriple(anonIdUri, RDF.type.toString(), RDF.Bag.toString());
-			i = 0;
-			for(Object obj : setObjects){
-				queryBody[DELETE_INDEX] += prepareLiteralTriple(anonIdUri, RDF.li(i).toString(), obj.toString());
-				i++;
-			}		
-			break;			
-		case LIST:
-			List<?> listObjects = (List<?>) object;
-			queryBody[DELETE_INDEX] += prepareLiteralTriple(subject.getUri().toString(), EntityManager.getKBPropertyURI(property).toString(), anonIdUri);
-			queryBody[DELETE_INDEX] += prepareLiteralTriple(anonIdUri, RDF.type.toString(), RDF.Seq.toString());
-			i = 0;
-			for(Object obj : listObjects){
-				queryBody[DELETE_INDEX] += prepareLiteralTriple(anonIdUri, RDF.li(i).toString(), obj.toString());
-				i++;
-			}		
-			break;		
-		case MAP:
-			Map<?,?> mapObjects = (Map<?,?>) object;
-			queryBody[DELETE_INDEX] += prepareLiteralTriple(subject.getUri().toString(), EntityManager.getKBPropertyURI(property).toString(), anonIdUri);
-			queryBody[DELETE_INDEX] += prepareLiteralTriple(anonIdUri, RDF.type.toString(), KBEntity.uriBase + "Map");
-			i = 0;
-			Set<?> keys = mapObjects.keySet();
-			for(Object key : keys){
-				queryBody[DELETE_INDEX] += prepareLiteralTriple(anonIdUri, RDF.li(i).toString(), mapObjects.get(key).toString());
-				i++;
-			}	
-			break;
-		default:
-			queryBody[DELETE_INDEX] += prepareLiteralTriple(subject,property, object.toString());
-			break;
+		if(varType == null){
+			queryBody[INSERT_DATA_INDEX] += prepareLiteralTriple(subject.getUri().toString(), property, object.toString());
+		} else{
+			switch (varType) {
+			case SET:
+				Set<?> setObjects = (Set<?>) object;
+				queryBody[DELETE_DATA_INDEX] += prepareLiteralTriple(subject.getUri().toString(), EntityManager.getKBPropertyURI(property).toString(), anonIdUri);
+				queryBody[DELETE_DATA_INDEX] += prepareLiteralTriple(anonIdUri, RDF.type.toString(), RDF.Bag.toString());
+				i = 0;
+				for(Object obj : setObjects){
+					queryBody[DELETE_INDEX] += prepareLiteralTriple(anonIdUri, RDF.li(i).toString(), obj.toString());
+					i++;
+				}		
+				break;			
+			case LIST:
+				List<?> listObjects = (List<?>) object;
+				queryBody[DELETE_DATA_INDEX] += prepareLiteralTriple(subject.getUri().toString(), EntityManager.getKBPropertyURI(property).toString(), anonIdUri);
+				queryBody[DELETE_DATA_INDEX] += prepareLiteralTriple(anonIdUri, RDF.type.toString(), RDF.Seq.toString());
+				i = 0;
+				for(Object obj : listObjects){
+					queryBody[DELETE_DATA_INDEX] += prepareLiteralTriple(anonIdUri, RDF.li(i).toString(), obj.toString());
+					i++;
+				}		
+				break;		
+			case MAP:
+				Map<?,?> mapObjects = (Map<?,?>) object;
+				queryBody[DELETE_DATA_INDEX] += prepareLiteralTriple(subject.getUri().toString(), EntityManager.getKBPropertyURI(property).toString(), anonIdUri);
+				queryBody[DELETE_DATA_INDEX] += prepareLiteralTriple(anonIdUri, RDF.type.toString(), KBEntity.uriBase + "Map");
+				i = 0;
+				Set<?> keys = mapObjects.keySet();
+				for(Object key : keys){
+					queryBody[DELETE_DATA_INDEX] += prepareLiteralTriple(anonIdUri, RDF.li(i).toString(), mapObjects.get(key).toString());
+					i++;
+				}	
+				break;
+			default:
+				queryBody[DELETE_DATA_INDEX] += prepareLiteralTriple(subject,property, object.toString());
+				break;
+			}
 		}
 		return queryBody;
 	}
@@ -484,8 +511,7 @@ public class FusekiKBAPI {
 		return entities;
 	}
 
-	public <T extends KBEntity> Set<T> getAll(Class<T> subjectEntityClass,
-			String property, String object) {
+	public <T extends KBEntity> Set<T> getAll(Class<T> subjectEntityClass, String property, String object) {
 		// TODO TEMPORARY STUPID SOLUTION, not filtering by property object
 		return getAll(subjectEntityClass);
 	}
