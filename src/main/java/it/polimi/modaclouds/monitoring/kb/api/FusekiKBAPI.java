@@ -32,6 +32,7 @@ import org.apache.commons.beanutils.PropertyUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.hp.hpl.jena.ontology.OntModel;
 import com.hp.hpl.jena.query.DatasetAccessor;
 import com.hp.hpl.jena.query.DatasetAccessorFactory;
 import com.hp.hpl.jena.query.Syntax;
@@ -64,36 +65,38 @@ public class FusekiKBAPI {
 	private static final int WHERE_DELETE_INDEX = 4;
 	private static final int WHERE_INSERT_INDEX = 5;
 
-	/*Serialization: 
-	- Set -> Bag (using the rdf:_1, rdf:_2... properties, these are rdf:li subproperties)
-	- List -> Seq (using the rdf:_1, rdf:_2... properties, these are rdf:li subproperties)
-	- Map -> custom construct, same format of the containers with custom type (map) 
-				-> entity predicate map. 
-				   map element [id, value] .  
-				   map element [id, value] .
+	/*
+	 * Serialization: - Set -> Bag (using the rdf:_1, rdf:_2... properties,
+	 * these are rdf:li subproperties) - List -> Seq (using the rdf:_1,
+	 * rdf:_2... properties, these are rdf:li subproperties) - Map -> custom
+	 * construct, same format of the containers with custom type (map) -> entity
+	 * predicate map. map element [id, value] . map element [id, value] .
 	 */
 
 	private DatasetAccessor dataAccessor;
 	private String knowledgeBaseURL;
-	private String class_package;
+	private String entitiesPackage;
 
-	/**
-	 * Example url: http://localhost:3030/modaclouds/kb
-	 * 
-	 * @param knowledgeBaseURL
-	 */
-	public FusekiKBAPI(String knowledgeBaseURL) {
-		this.knowledgeBaseURL = knowledgeBaseURL;
-		dataAccessor = DatasetAccessorFactory.createHTTP(getKnowledgeBaseDataURL());
-		this.class_package = "it.polimi.modaclouds.qos_models.monitoring_ontology.";
-	}
+	// /**
+	// * Example url: http://localhost:3030/modaclouds/kb
+	// *
+	// * @param knowledgeBaseURL
+	// */
+	// public FusekiKBAPI(String knowledgeBaseURL) {
+	// this.knowledgeBaseURL = knowledgeBaseURL;
+	// dataAccessor =
+	// DatasetAccessorFactory.createHTTP(getKnowledgeBaseDataURL());
+	// this.class_package =
+	// "it.polimi.modaclouds.qos_models.monitoring_ontology.";
+	// }
 
-	public FusekiKBAPI(String knowledgeBaseURL, String class_package) {
+	public FusekiKBAPI(String knowledgeBaseURL, String entitiesPackage) {
 		this.knowledgeBaseURL = knowledgeBaseURL;
-		dataAccessor = DatasetAccessorFactory.createHTTP(getKnowledgeBaseDataURL());
-		if(!class_package.endsWith("."))
-			class_package = class_package + ".";
-		this.class_package = class_package;
+		dataAccessor = DatasetAccessorFactory
+				.createHTTP(getKnowledgeBaseDataURL());
+		if (!entitiesPackage.endsWith("."))
+			entitiesPackage = entitiesPackage + ".";
+		this.entitiesPackage = entitiesPackage;
 	}
 
 	private String[] getEmptyQueryBody() {
@@ -121,7 +124,7 @@ public class FusekiKBAPI {
 		// TODO avoid downloading the entire model
 		Model model = dataAccessor.getModel();
 		Resource r = ResourceFactory.createResource(uri.toString());
-		KBEntity entity = EntityManager.toJava(r, model, this.class_package);
+		KBEntity entity = EntityManager.toJava(r, model, this.entitiesPackage);
 		return entity;
 	}
 
@@ -159,8 +162,9 @@ public class FusekiKBAPI {
 		// be ok
 		String queryString = "PREFIX rdf:<http://www.w3.org/1999/02/22-rdf-syntax-ns#> "
 				+ "PREFIX mc:<http://www.modaclouds.eu/rdfs/1.0/entities#> "
-				+ "DELETE { "
-				+ "<" + uri + "> ?p ?o . "
+				+ "DELETE { " + "<"
+				+ uri
+				+ "> ?p ?o . "
 				+ "?o rdf:type rdf:Seq . "
 				+ "?o rdf:type rdf:Bag . "
 				+ "?o rdf:type mc:Map . "
@@ -168,7 +172,9 @@ public class FusekiKBAPI {
 				+ "?o1 ?p2 ?o2 . "
 				+ "} "
 				+ "WHERE { "
-				+ "<" + uri + "> ?p ?o . "
+				+ "<"
+				+ uri
+				+ "> ?p ?o . "
 				+ "OPTIONAL { "
 				+ "?o rdf:type rdf:Seq . "
 				+ "?o ?p1 ?o1 . "
@@ -180,9 +186,7 @@ public class FusekiKBAPI {
 				+ "OPTIONAL { "
 				+ "?o rdf:type mc:Map . "
 				+ "?o ?p1 ?o1 . "
-				+ "?o1 ?p2 ?o2 . "
-				+ "}"
-				+ "}";
+				+ "?o1 ?p2 ?o2 . " + "}" + "}";
 		logger.info("Prepared delete Query:\n" + queryString);
 		UpdateRequest query = UpdateFactory.create(queryString,
 				Syntax.syntaxSPARQL_11);
@@ -209,8 +213,9 @@ public class FusekiKBAPI {
 		Set<String> uris = new HashSet<String>();
 		// TODO avoid downloading the entire model
 		Model model = dataAccessor.getModel();
-		StmtIterator iter = model.listStatements(null, RDF.type,ResourceFactory.createResource(EntityManager
-				.getKBClassURI(entityClass)));
+		StmtIterator iter = model.listStatements(null, RDF.type,
+				ResourceFactory.createResource(EntityManager
+						.getKBClassURI(entityClass)));
 		while (iter.hasNext()) {
 			uris.add(iter.nextStatement().getSubject().getURI());
 		}
@@ -241,7 +246,8 @@ public class FusekiKBAPI {
 			explored.add(entity);
 			Map<String, Object> properties = getProperties(entity);
 			KBEntity entityFromKB = getEntityByURI(entity.getUri());
-			if (entityFromKB == null) { // The entity does not exist in the KB, creating new instance...
+			if (entityFromKB == null) { // The entity does not exist in the KB,
+										// creating new instance...
 				addNewEntity(entity, queryBody);
 				for (String property : properties.keySet()) {
 					Object value = properties.get(property);
@@ -261,8 +267,16 @@ public class FusekiKBAPI {
 						addNewProperty(entity, property, value, queryBody);
 					} else if (value == null) {
 						deleteProperty(entity, property, value, queryBody);
-					} else if (!entityFromKBValue.equals(value)) { //add new control for List and Map and change the Set serialization
-						deleteProperty(entity, property, entityFromKBValue,	queryBody);
+					} else if (!entityFromKBValue.equals(value)) { // add new
+																	// control
+																	// for List
+																	// and Map
+																	// and
+																	// change
+																	// the Set
+																	// serialization
+						deleteProperty(entity, property, entityFromKBValue,
+								queryBody);
 						addNewProperty(entity, property, value, queryBody);
 					}
 				}
@@ -271,83 +285,113 @@ public class FusekiKBAPI {
 		return queryBody;
 	}
 
-	private void deleteProperty(KBEntity entity, String property, Object value, String[] queryBody) { // this should be
-		if (value instanceof Set<?>) { 
-			String[] temp = prepareDeletePropertyQueryBody(entity, property, value, VariableTypes.SET);
+	private void deleteProperty(KBEntity entity, String property, Object value,
+			String[] queryBody) { // this should be
+		if (value instanceof Set<?>) {
+			String[] temp = prepareDeletePropertyQueryBody(entity, property,
+					value, VariableTypes.SET);
 			concatBodies(queryBody, temp);
-		} else if(value instanceof List<?>) { 
-			String[] temp = prepareDeletePropertyQueryBody(entity, property, value, VariableTypes.LIST);
+		} else if (value instanceof List<?>) {
+			String[] temp = prepareDeletePropertyQueryBody(entity, property,
+					value, VariableTypes.LIST);
 			concatBodies(queryBody, temp);
-		} else if(value instanceof Map<?,?>) { 
-			String[] temp = prepareDeletePropertyQueryBody(entity, property, value, VariableTypes.MAP);
+		} else if (value instanceof Map<?, ?>) {
+			String[] temp = prepareDeletePropertyQueryBody(entity, property,
+					value, VariableTypes.MAP);
 			concatBodies(queryBody, temp);
 		} else {
-			String[] temp = prepareDeletePropertyQueryBody(entity, property, value, null);
+			String[] temp = prepareDeletePropertyQueryBody(entity, property,
+					value, null);
 			concatBodies(queryBody, temp);
 		}
 	}
 
-	private String[] prepareDeletePropertyQueryBody(KBEntity subject, String property, Object object, VariableTypes varType) {
+	private String[] prepareDeletePropertyQueryBody(KBEntity subject,
+			String property, Object object, VariableTypes varType) {
 
-		String anonIdUri = getByPropertyValue(property, null).iterator().next().getUri().toString();
+		String anonIdUri = getByPropertyValue(property, null).iterator().next()
+				.getUri().toString();
 
 		String[] queryBody = getEmptyQueryBody();
 		int i = 0;
-		if(varType == null){
-			queryBody[INSERT_DATA_INDEX] += prepareLiteralTriple(subject.getUri().toString(), property, object.toString());
-		} else{
+		if (varType == null) {
+			queryBody[INSERT_DATA_INDEX] += prepareLiteralTriple(subject
+					.getUri().toString(), property, object.toString());
+		} else {
 			switch (varType) {
 			case SET:
 				Set<?> setObjects = (Set<?>) object;
-				queryBody[DELETE_DATA_INDEX] += prepareLiteralTriple(subject.getUri().toString(), EntityManager.getKBPropertyURI(property).toString(), anonIdUri);
-				queryBody[DELETE_DATA_INDEX] += prepareLiteralTriple(anonIdUri, RDF.type.toString(), RDF.Bag.toString());
+				queryBody[DELETE_DATA_INDEX] += prepareLiteralTriple(subject
+						.getUri().toString(),
+						EntityManager.getKBPropertyURI(property).toString(),
+						anonIdUri);
+				queryBody[DELETE_DATA_INDEX] += prepareLiteralTriple(anonIdUri,
+						RDF.type.toString(), RDF.Bag.toString());
 				i = 0;
-				for(Object obj : setObjects){
-					queryBody[DELETE_INDEX] += prepareLiteralTriple(anonIdUri, RDF.li(i).toString(), obj.toString());
+				for (Object obj : setObjects) {
+					queryBody[DELETE_INDEX] += prepareLiteralTriple(anonIdUri,
+							RDF.li(i).toString(), obj.toString());
 					i++;
-				}		
-				break;			
+				}
+				break;
 			case LIST:
 				List<?> listObjects = (List<?>) object;
-				queryBody[DELETE_DATA_INDEX] += prepareLiteralTriple(subject.getUri().toString(), EntityManager.getKBPropertyURI(property).toString(), anonIdUri);
-				queryBody[DELETE_DATA_INDEX] += prepareLiteralTriple(anonIdUri, RDF.type.toString(), RDF.Seq.toString());
+				queryBody[DELETE_DATA_INDEX] += prepareLiteralTriple(subject
+						.getUri().toString(),
+						EntityManager.getKBPropertyURI(property).toString(),
+						anonIdUri);
+				queryBody[DELETE_DATA_INDEX] += prepareLiteralTriple(anonIdUri,
+						RDF.type.toString(), RDF.Seq.toString());
 				i = 0;
-				for(Object obj : listObjects){
-					queryBody[DELETE_DATA_INDEX] += prepareLiteralTriple(anonIdUri, RDF.li(i).toString(), obj.toString());
+				for (Object obj : listObjects) {
+					queryBody[DELETE_DATA_INDEX] += prepareLiteralTriple(
+							anonIdUri, RDF.li(i).toString(), obj.toString());
 					i++;
-				}		
-				break;		
+				}
+				break;
 			case MAP:
-				Map<?,?> mapObjects = (Map<?,?>) object;
-				queryBody[DELETE_DATA_INDEX] += prepareLiteralTriple(subject.getUri().toString(), EntityManager.getKBPropertyURI(property).toString(), anonIdUri);
-				queryBody[DELETE_DATA_INDEX] += prepareLiteralTriple(anonIdUri, RDF.type.toString(), KBEntity.uriBase + "Map");
+				Map<?, ?> mapObjects = (Map<?, ?>) object;
+				queryBody[DELETE_DATA_INDEX] += prepareLiteralTriple(subject
+						.getUri().toString(),
+						EntityManager.getKBPropertyURI(property).toString(),
+						anonIdUri);
+				queryBody[DELETE_DATA_INDEX] += prepareLiteralTriple(anonIdUri,
+						RDF.type.toString(), KBEntity.uriBase + "Map");
 				i = 0;
 				Set<?> keys = mapObjects.keySet();
-				for(Object key : keys){
-					queryBody[DELETE_DATA_INDEX] += prepareLiteralTriple(anonIdUri, RDF.li(i).toString(), mapObjects.get(key).toString());
+				for (Object key : keys) {
+					queryBody[DELETE_DATA_INDEX] += prepareLiteralTriple(
+							anonIdUri, RDF.li(i).toString(), mapObjects
+									.get(key).toString());
 					i++;
-				}	
+				}
 				break;
 			default:
-				queryBody[DELETE_DATA_INDEX] += prepareLiteralTriple(subject,property, object.toString());
+				queryBody[DELETE_DATA_INDEX] += prepareLiteralTriple(subject,
+						property, object.toString());
 				break;
 			}
 		}
 		return queryBody;
 	}
 
-	private void addNewProperty(KBEntity entity, String property, Object value, String[] queryBody) {
-		if (value instanceof Set<?>) { 
-			String[] temp = prepareAddPropertyQueryBody(entity, property, value, VariableTypes.SET);
+	private void addNewProperty(KBEntity entity, String property, Object value,
+			String[] queryBody) {
+		if (value instanceof Set<?>) {
+			String[] temp = prepareAddPropertyQueryBody(entity, property,
+					value, VariableTypes.SET);
 			concatBodies(queryBody, temp);
-		} else if(value instanceof List<?>) { 
-			String[] temp = prepareAddPropertyQueryBody(entity, property, value, VariableTypes.LIST);
+		} else if (value instanceof List<?>) {
+			String[] temp = prepareAddPropertyQueryBody(entity, property,
+					value, VariableTypes.LIST);
 			concatBodies(queryBody, temp);
-		} else if(value instanceof Map<?,?>) { 
-			String[] temp = prepareAddPropertyQueryBody(entity, property, value, VariableTypes.MAP);
+		} else if (value instanceof Map<?, ?>) {
+			String[] temp = prepareAddPropertyQueryBody(entity, property,
+					value, VariableTypes.MAP);
 			concatBodies(queryBody, temp);
 		} else {
-			String[] temp = prepareAddPropertyQueryBody(entity, property, value, null);
+			String[] temp = prepareAddPropertyQueryBody(entity, property,
+					value, null);
 			concatBodies(queryBody, temp);
 		}
 	}
@@ -356,79 +400,109 @@ public class FusekiKBAPI {
 		queryBody[INSERT_DATA_INDEX] += prepareAboutTriple(entity);
 	}
 
-	private String[] prepareAddPropertyQueryBody(KBEntity subject, String property, Object object, VariableTypes varType) {
+	private String[] prepareAddPropertyQueryBody(KBEntity subject,
+			String property, Object object, VariableTypes varType) {
 		String[] queryBody = getEmptyQueryBody();
 		int i = 0;
-		if(varType == null){
-			queryBody[INSERT_DATA_INDEX] += prepareLiteralTriple(subject.getUri().toString(), property, object.toString());
+		if (varType == null) {
+			queryBody[INSERT_DATA_INDEX] += prepareLiteralTriple(subject
+					.getUri().toString(), property, object.toString());
 		} else {
 			switch (varType) {
 			case SET:
 				Set<?> setObjects = (Set<?>) object;
-				String bagAnonId = new AnonId(UUID.randomUUID().toString()).toString();
+				String bagAnonId = new AnonId(UUID.randomUUID().toString())
+						.toString();
 				bagAnonId = KBEntity.uriBase + bagAnonId;
-				queryBody[INSERT_DATA_INDEX] += prepareLiteralTriple(subject.getUri().toString(), EntityManager.getKBPropertyURI(property).toString(), bagAnonId);
-				queryBody[INSERT_DATA_INDEX] += prepareLiteralTriple(bagAnonId, RDF.type.toString(), RDF.Bag.toString());
+				queryBody[INSERT_DATA_INDEX] += prepareLiteralTriple(subject
+						.getUri().toString(),
+						EntityManager.getKBPropertyURI(property).toString(),
+						bagAnonId);
+				queryBody[INSERT_DATA_INDEX] += prepareLiteralTriple(bagAnonId,
+						RDF.type.toString(), RDF.Bag.toString());
 				i = 0;
-				for(Object obj : setObjects){
-					queryBody[INSERT_DATA_INDEX] += prepareLiteralTriple(bagAnonId, RDF.li(i).toString(), obj.toString());
+				for (Object obj : setObjects) {
+					queryBody[INSERT_DATA_INDEX] += prepareLiteralTriple(
+							bagAnonId, RDF.li(i).toString(), obj.toString());
 					i++;
-				}			
+				}
 				break;
 			case LIST:
 				List<?> listObjects = (List<?>) object;
-				String seqAnonId = new AnonId(UUID.randomUUID().toString()).toString();
+				String seqAnonId = new AnonId(UUID.randomUUID().toString())
+						.toString();
 				seqAnonId = KBEntity.uriBase + seqAnonId;
-				queryBody[INSERT_DATA_INDEX] += prepareLiteralTriple(subject.getUri().toString(), EntityManager.getKBPropertyURI(property).toString(), seqAnonId);
-				queryBody[INSERT_DATA_INDEX] += prepareLiteralTriple(seqAnonId, RDF.type.toString(), RDF.Seq.toString());
+				queryBody[INSERT_DATA_INDEX] += prepareLiteralTriple(subject
+						.getUri().toString(),
+						EntityManager.getKBPropertyURI(property).toString(),
+						seqAnonId);
+				queryBody[INSERT_DATA_INDEX] += prepareLiteralTriple(seqAnonId,
+						RDF.type.toString(), RDF.Seq.toString());
 				i = 0;
-				for(Object obj : listObjects){
-					queryBody[INSERT_DATA_INDEX] += prepareLiteralTriple(seqAnonId, RDF.li(i).toString(), obj.toString());
+				for (Object obj : listObjects) {
+					queryBody[INSERT_DATA_INDEX] += prepareLiteralTriple(
+							seqAnonId, RDF.li(i).toString(), obj.toString());
 					i++;
-				}			
+				}
 				break;
 			case MAP:
-				Map<?,?> mapObjects = (Map<?,?>) object;
-				String mapAnonId = new AnonId(UUID.randomUUID().toString()).toString();
+				Map<?, ?> mapObjects = (Map<?, ?>) object;
+				String mapAnonId = new AnonId(UUID.randomUUID().toString())
+						.toString();
 				mapAnonId = KBEntity.uriBase + mapAnonId;
-				queryBody[INSERT_DATA_INDEX] += prepareLiteralTriple(subject.getUri().toString(), EntityManager.getKBPropertyURI(property).toString(), mapAnonId);
-				queryBody[INSERT_DATA_INDEX] += prepareLiteralTriple(mapAnonId, RDF.type.toString(), KBEntity.uriBase + "Map");
+				queryBody[INSERT_DATA_INDEX] += prepareLiteralTriple(subject
+						.getUri().toString(),
+						EntityManager.getKBPropertyURI(property).toString(),
+						mapAnonId);
+				queryBody[INSERT_DATA_INDEX] += prepareLiteralTriple(mapAnonId,
+						RDF.type.toString(), KBEntity.uriBase + "Map");
 				i = 0;
 				Set<?> keys = mapObjects.keySet();
-				for(Object key : keys){
-					String internalAnonId = new AnonId(UUID.randomUUID().toString()).toString();
+				for (Object key : keys) {
+					String internalAnonId = new AnonId(UUID.randomUUID()
+							.toString()).toString();
 					internalAnonId = KBEntity.uriBase + internalAnonId;
-					queryBody[INSERT_DATA_INDEX] += prepareLiteralTriple(mapAnonId, RDF.li(i).toString(), internalAnonId);
-					queryBody[INSERT_DATA_INDEX] += prepareLiteralTriple(internalAnonId, KBEntity.uriBase + "key", key.toString());
-					queryBody[INSERT_DATA_INDEX] += prepareLiteralTriple(internalAnonId, KBEntity.uriBase + "value", mapObjects.get(key).toString());
+					queryBody[INSERT_DATA_INDEX] += prepareLiteralTriple(
+							mapAnonId, RDF.li(i).toString(), internalAnonId);
+					queryBody[INSERT_DATA_INDEX] += prepareLiteralTriple(
+							internalAnonId, KBEntity.uriBase + "key",
+							key.toString());
+					queryBody[INSERT_DATA_INDEX] += prepareLiteralTriple(
+							internalAnonId, KBEntity.uriBase + "value",
+							mapObjects.get(key).toString());
 					i++;
-				}			
+				}
 				break;
 			default:
-				queryBody[INSERT_DATA_INDEX] += prepareLiteralTriple(subject.getUri().toString(), property, object.toString());
+				queryBody[INSERT_DATA_INDEX] += prepareLiteralTriple(subject
+						.getUri().toString(), property, object.toString());
 				break;
 			}
 		}
 		return queryBody;
 	}
 
-	private String prepareLiteralTriple(KBEntity entity, String property, String literal) {
+	private String prepareLiteralTriple(KBEntity entity, String property,
+			String literal) {
 		return entity.getShortURI() + " "
 				+ EntityManager.getKBPropertyURI(property) + " \"" + literal
 				+ "\" . ";
 	}
 
-	private static String prepareLiteralTriple(String subject, String property, String object) {
+	private static String prepareLiteralTriple(String subject, String property,
+			String object) {
 
-		if(subject.contains("http://")){
+		if (subject.contains("http://")) {
 			subject = "<" + subject + ">";
-		} if(property.contains("http://")){
+		}
+		if (property.contains("http://")) {
 			property = "<" + property + ">";
 		} else {
 			property = "<" + EntityManager.getKBPropertyURI(property) + ">";
-		} if(object.contains("http://")){
+		}
+		if (object.contains("http://")) {
 			object = "<" + object + ">";
-		} else if(object.contains(":")){
+		} else if (object.contains(":")) {
 			object = "" + object + "";
 		} else {
 			object = "\"" + object + "\"";
@@ -476,13 +550,13 @@ public class FusekiKBAPI {
 		Set<KBEntity> entities = new HashSet<KBEntity>();
 		// TODO avoid downloading entire model
 		Model model = dataAccessor.getModel();
-		if(value != null) {
+		if (value != null) {
 			StmtIterator iter = model.listStatements(null, ResourceFactory
 					.createProperty(EntityManager.getKBPropertyURI(property)),
 					value);
 			while (iter.hasNext()) {
 				Resource r = iter.nextStatement().getSubject();
-				entities.add(EntityManager.toJava(r, model, this.class_package));
+				entities.add(EntityManager.toJava(r, model, this.entitiesPackage));
 			}
 		} else {
 			StmtIterator iter = model.listStatements(null, ResourceFactory
@@ -490,7 +564,7 @@ public class FusekiKBAPI {
 					(RDFNode) null);
 			while (iter.hasNext()) {
 				Resource r = iter.nextStatement().getSubject();
-				entities.add(EntityManager.toJava(r, model, this.class_package));
+				entities.add(EntityManager.toJava(r, model, this.entitiesPackage));
 			}
 		}
 		return entities;
@@ -506,14 +580,30 @@ public class FusekiKBAPI {
 						.getKBClassURI(entityClass)));
 		while (iter.hasNext()) {
 			Resource r = iter.nextStatement().getSubject();
-			entities.add((T) EntityManager.toJava(r, model, this.class_package));
+			entities.add((T) EntityManager.toJava(r, model, this.entitiesPackage));
 		}
 		return entities;
 	}
 
-	public <T extends KBEntity> Set<T> getAll(Class<T> subjectEntityClass, String property, String object) {
-		// TODO TEMPORARY STUPID SOLUTION, not filtering by property object
-		return getAll(subjectEntityClass);
+	public void uploadOntology(OntModel model) {
+		dataAccessor.add(model);
 	}
 
+//	public <T extends KBEntity> Set<T> getAll(Class<T> subjectEntityClass,
+//			String property, String object) { // THINK ABOUT SETS, LISTS, MAPS...
+//		Set<T> entities = new HashSet<T>();
+//		// TODO avoid downloading entire model
+//		Model model = dataAccessor.getModel();
+//		StmtIterator iter = model.listStatements(null,
+//				ResourceFactory.createProperty(KBEntity.uriBase + property),
+//				ResourceFactory.createPlainLiteral(object));
+//
+//		while (iter.hasNext()) {
+//			Resource r = iter.nextStatement().getSubject();
+//			if (r.hasURI(EntityManager.getKBClassURI(subjectEntityClass)))
+//				entities.add((T) EntityManager.toJava(r, model,
+//						this.class_package));
+//		}
+//		return entities;
+//	}
 }
