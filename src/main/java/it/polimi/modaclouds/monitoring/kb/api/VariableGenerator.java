@@ -18,9 +18,9 @@ package it.polimi.modaclouds.monitoring.kb.api;
 
 public class VariableGenerator {
 	
-	private int counter = 0;
+	private static int counter = 0;
 
-	public String getNew() {
+	public static String getNew() {
 		return "?x"+counter++;
 	}
 

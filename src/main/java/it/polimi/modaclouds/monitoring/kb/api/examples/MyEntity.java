@@ -14,7 +14,7 @@
  *    See the License for the specific language governing permissions and
  *    limitations under the License.
  */
-package it.polimi.modaclouds.monitoring.kb.api;
+package it.polimi.modaclouds.monitoring.kb.api.examples;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -22,12 +22,13 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 
-public class KbEntityImpl extends KBEntity {
+public class MyEntity {
 	
 	private HashSet<String> set = new HashSet<>();
 	private List<String> list = new ArrayList<>();
 	private Map<String, String> map = new HashMap<String, String>();
 	private String string = new String();
+	private String id;
 	
 	public String getString() {
 		return string;
@@ -71,6 +72,14 @@ public class KbEntityImpl extends KBEntity {
 
 	public void setMap(Map<String, String> map) {
 		this.map = map;
+	}
+
+	public String getId() {
+		return id;
+	}
+
+	public void setId(String id) {
+		this.id = id;
 	}
 	
 	
