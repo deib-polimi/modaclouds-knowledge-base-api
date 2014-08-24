@@ -232,6 +232,14 @@ public class FusekiKBAPI {
 					getShortUriFromLocalName(property), object.toString());
 		}
 	}
+	
+	public void deleteAll(Iterable<?> entities, String idPropertyName) throws SerializationException {
+		List<String> ids = new ArrayList<String>();
+		for (Object entity : entities) {
+			ids.add(getEntityId(entity, idPropertyName));
+		}
+		deleteEntitiesById(ids, idPropertyName);
+	}
 
 	public void deleteEntitiesById(Iterable<String> ids, String idPropertyName)
 			throws SerializationException {
