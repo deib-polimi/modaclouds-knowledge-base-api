@@ -232,24 +232,71 @@ public class FusekiKBAPI {
 					getShortUriFromLocalName(property), object.toString());
 		}
 	}
-	
-	public void deleteAll(Iterable<?> entities, String idPropertyName) throws SerializationException {
-		List<String> ids = new ArrayList<String>();
+
+	public void deleteAll(Set<?> entities, String idPropertyName)
+			throws SerializationException {
+		Set<String> ids = new HashSet<String>();
 		for (Object entity : entities) {
 			ids.add(getEntityId(entity, idPropertyName));
 		}
-		deleteEntitiesById(ids, idPropertyName);
+		deleteEntitiesByPropertyValues(ids, idPropertyName);
 	}
 
-	public void deleteEntitiesById(Iterable<String> ids, String idPropertyName)
-			throws SerializationException {
-		for (String id : ids) {
-			deleteEntityById(id, idPropertyName);
+	public void deleteEntitiesByPropertyValues(Set<String> propertyValues,
+			String propertyName) throws SerializationException {
+		Preconditions.checkNotNull(propertyValues);
+		Preconditions.checkNotNull(propertyName);
+		Preconditions.checkArgument(!propertyValues.isEmpty());
+		String unionBlock = "{ ";
+		int left = propertyValues.size();
+		for (String value : propertyValues) {
+			left--;
+			unionBlock += prepareLiteralTriple("?s",
+					getShortUriFromLocalName(propertyName), value);
+			if (left > 0) {
+				unionBlock += "} UNION { ";
+			}
 		}
+		unionBlock += "} . ";
+
+		String queryString = "PREFIX rdf:<"
+				+ RDF.getURI()
+				+ "> "
+				+ "PREFIX "
+				+ KBConfig.uriPrefix
+				+ ":<"
+				+ KBConfig.namespace
+				+ "> "
+				+ "DELETE { "
+				+ prepareTriple("?s", "?p", "?o")
+				+ prepareTriple("?o", "?p1", "?o1")
+				+ prepareTriple("?o", "?p2", "?o2")
+				+ " } WHERE { "
+				+ unionBlock
+				+ prepareTriple("?s", "?p", "?o")
+				+ "OPTIONAL { "
+				+ prepareTriple("?o", RDF.type.toString(), RDF.Seq.toString())
+				+ prepareTriple("?o", "?p1", "?o1")
+				+ "} "
+				+ "OPTIONAL { "
+				+ prepareTriple("?o", RDF.type.toString(), RDF.Bag.toString())
+				+ prepareTriple("?o", "?p1", "?o1")
+				+ "} "
+				+ "OPTIONAL { "
+				+ prepareTriple("?o", RDF.type.toString(),
+						KBConfig.MapRDFResource.toString())
+				+ prepareTriple("?o", "?p1", "?o1")
+				+ prepareTriple("?o", "?p2", "?o2") + "}  }";
+		logger.info("Prepared delete Query:\n" + queryString);
+		UpdateRequest query = UpdateFactory.create(queryString,
+				Syntax.syntaxSPARQL_11);
+		UpdateProcessor execUpdate = UpdateExecutionFactory.createRemote(query,
+				getKnowledgeBaseUpdateURL());
+		execUpdate.execute();
 	}
 
-	public void deleteEntityById(String id, String idPropertyName)
-			throws SerializationException {
+	public void deleteEntitiesByPropertyValue(String propertyValue,
+			String propertyName) throws SerializationException {
 		String queryString = "PREFIX rdf:<"
 				+ RDF.getURI()
 				+ "> "
@@ -261,12 +308,12 @@ public class FusekiKBAPI {
 				+ "DELETE { "
 				+ prepareTriple("?s", "?p", "?o")
 				+ prepareLiteralTriple("?s",
-						getShortUriFromLocalName(idPropertyName), id)
+						getShortUriFromLocalName(propertyName), propertyValue)
 				+ prepareTriple("?o", "?p1", "?o1")
 				+ prepareTriple("?o", "?p2", "?o2")
 				+ " } WHERE { "
 				+ prepareLiteralTriple("?s",
-						getShortUriFromLocalName(idPropertyName), id)
+						getShortUriFromLocalName(propertyName), propertyValue)
 				+ prepareTriple("?s", "?p", "?o")
 				+ "OPTIONAL { "
 				+ prepareTriple("?o", RDF.type.toString(), RDF.Seq.toString())
@@ -375,9 +422,13 @@ public class FusekiKBAPI {
 		Model model = dataAccessor.getModel();
 		Resource resource = getRDFResourceByPropertyValue(new PropertyImpl(
 				KBConfig.namespace, idPropertyName), id, model);
-		if (resource == null)
+		if (resource == null) {
+			logger.warn("No entity found with {} {}", idPropertyName, id);
 			return null;
-		return toJava(resource, model);
+		}
+		Object entity = toJava(resource, model);
+		logger.info("Retrieved entity: {}", entity.toString());
+		return entity;
 	}
 
 	private String getEntityId(Object entity, String idPropertyName)
