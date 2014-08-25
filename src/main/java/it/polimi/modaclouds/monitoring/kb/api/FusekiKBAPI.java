@@ -423,7 +423,8 @@ public class FusekiKBAPI {
 		Resource resource = getRDFResourceByPropertyValue(new PropertyImpl(
 				KBConfig.namespace, idPropertyName), id, model);
 		if (resource == null) {
-			logger.warn("No entity found with {} {}", idPropertyName, id);
+			logger.warn("No entity found with {} {} on the KB", idPropertyName,
+					id);
 			return null;
 		}
 		Object entity = toJava(resource, model);
@@ -482,6 +483,8 @@ public class FusekiKBAPI {
 		try {
 			properties = PropertyUtils.describe(object);
 			properties.remove("class");
+//			properties.put(KBConfig.javaClassProperty,
+//			object.getClass().getName());
 		} catch (Exception e) {
 			throw new IllegalArgumentException(
 					"Cannot retrieve object properties for serialization", e);
@@ -572,6 +575,23 @@ public class FusekiKBAPI {
 		} else {
 			logger.info("An entity with {} {} already exists, updating it",
 					idPropertyName, entityId);
+
+			if (!newEntity.getClass().equals(oldEntity.getClass())) {
+				Class<?> oldClass = oldEntity.getClass();
+				Class<?> newClass = newEntity.getClass();
+				String subjectUri = getShortUriFromLocalName(entityId);
+				queryBody[DELETE_DATA_INDEX] += prepareTriple(subjectUri,
+						RDF.type.toString(),
+						getShortUriFromLocalName(oldClass.getSimpleName()));
+				queryBody[INSERT_DATA_INDEX] += prepareTriple(subjectUri,
+						RDF.type.toString(),
+						getShortUriFromLocalName(newClass.getSimpleName()));
+				queryBody[DELETE_DATA_INDEX] += prepareLiteralTriple(subjectUri,
+						KBConfig.javaClassRDFProperty.toString(), oldClass.getName());
+				queryBody[INSERT_DATA_INDEX] += prepareLiteralTriple(subjectUri,
+						KBConfig.javaClassRDFProperty.toString(), newClass.getName());
+			}
+
 			Map<String, Object> oldEntityProperties = getJavaProperties(oldEntity);
 			for (String propertyName : newProperties.keySet()) {
 				Object oldEntityProperty = oldEntityProperties

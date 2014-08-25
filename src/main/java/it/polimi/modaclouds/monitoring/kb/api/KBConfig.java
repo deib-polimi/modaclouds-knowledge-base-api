@@ -28,7 +28,9 @@ public class KBConfig {
 	public static final String namespace = "http://www.modaclouds.eu/rdfs/1.0/entities#";
 	public static final String uriPrefix = "modaent";
 	
-	public static final Property javaClassRDFProperty = new PropertyImpl(namespace, "class");
+	public static final String javaClassProperty = "class";
+	public static final Property javaClassRDFProperty = new PropertyImpl(namespace, javaClassProperty);
+	
 	public static final Property keyRDFProperty = new PropertyImpl(namespace, "key");
 	public static final Property valueRDFProperty = new PropertyImpl(namespace, "value");
 	
