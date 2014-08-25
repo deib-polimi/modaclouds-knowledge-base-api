@@ -483,8 +483,8 @@ public class FusekiKBAPI {
 		try {
 			properties = PropertyUtils.describe(object);
 			properties.remove("class");
-//			properties.put(KBConfig.javaClassProperty,
-//			object.getClass().getName());
+			// properties.put(KBConfig.javaClassProperty,
+			// object.getClass().getName());
 		} catch (Exception e) {
 			throw new IllegalArgumentException(
 					"Cannot retrieve object properties for serialization", e);
@@ -586,10 +586,12 @@ public class FusekiKBAPI {
 				queryBody[INSERT_DATA_INDEX] += prepareTriple(subjectUri,
 						RDF.type.toString(),
 						getShortUriFromLocalName(newClass.getSimpleName()));
-				queryBody[DELETE_DATA_INDEX] += prepareLiteralTriple(subjectUri,
-						KBConfig.javaClassRDFProperty.toString(), oldClass.getName());
-				queryBody[INSERT_DATA_INDEX] += prepareLiteralTriple(subjectUri,
-						KBConfig.javaClassRDFProperty.toString(), newClass.getName());
+				queryBody[DELETE_DATA_INDEX] += prepareLiteralTriple(
+						subjectUri, KBConfig.javaClassRDFProperty.toString(),
+						oldClass.getName());
+				queryBody[INSERT_DATA_INDEX] += prepareLiteralTriple(
+						subjectUri, KBConfig.javaClassRDFProperty.toString(),
+						newClass.getName());
 			}
 
 			Map<String, Object> oldEntityProperties = getJavaProperties(oldEntity);
@@ -679,18 +681,15 @@ public class FusekiKBAPI {
 					KBConfig.MapRDFResource)) {
 				entity = new HashMap();
 				while (propIterator.hasNext()) {
-					StmtIterator mapIterator = model.listStatements(
-							rdfNode.asResource(), null, (RDFNode) null);
-					Object key = null;
-					Object value = null;
-					while (mapIterator.hasNext()) {
-						Statement stm = mapIterator.next();
-						if (stm.getPredicate().equals(KBConfig.keyRDFProperty))
-							key = toJava(stm.getObject(), model);
-						if (stm.getPredicate()
-								.equals(KBConfig.valueRDFProperty))
-							value = toJava(stm.getObject(), model);
-					}
+					Resource mapNode = propIterator.next().getObject()
+							.asResource();
+					RDFNode keyNode = mapNode.getProperty(
+							KBConfig.keyRDFProperty).getObject();
+
+					RDFNode valueNode = mapNode.getProperty(
+							KBConfig.valueRDFProperty).getObject();
+					Object key = toJava(keyNode, model);
+					Object value = toJava(valueNode, model);
 					((Map) entity).put(key, value);
 				}
 			} else {
