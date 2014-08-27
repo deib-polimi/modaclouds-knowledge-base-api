@@ -428,7 +428,7 @@ public class FusekiKBAPI {
 			return null;
 		}
 		Object entity = toJava(resource, model);
-		logger.info("Retrieved entity: {}", entity.toString());
+		logger.debug("Retrieved entity: {}", entity.toString());
 		return entity;
 	}
 
