@@ -22,17 +22,18 @@ import com.hp.hpl.jena.rdf.model.impl.PropertyImpl;
 import com.hp.hpl.jena.rdf.model.impl.ResourceImpl;
 
 
-public class KBConfig {
+class Config {
 
 	// TODO namespace and uriPrefix are both here and in qos-models
-	public static final String namespace = "http://www.modaclouds.eu/rdfs/1.0/entities#";
-	public static final String uriPrefix = "modaent";
+	static final String entitiesNamespace = "http://www.modaclouds.eu/rdfs/1.0/entities#";
+	static final String graphsNamespace = "http://www.modaclouds.eu/rdfs/1.0/graphs#";
+	static final String uriPrefix = "modaent";
 	
-	public static final String javaClassProperty = "class";
-	public static final Property javaClassRDFProperty = new PropertyImpl(namespace, javaClassProperty);
+	static final String javaClassProperty = "class";
+	static final Property javaClassRDFProperty = new PropertyImpl(entitiesNamespace, javaClassProperty);
 	
-	public static final Property keyRDFProperty = new PropertyImpl(namespace, "key");
-	public static final Property valueRDFProperty = new PropertyImpl(namespace, "value");
+	static final Property keyRDFProperty = new PropertyImpl(entitiesNamespace, "key");
+	static final Property valueRDFProperty = new PropertyImpl(entitiesNamespace, "value");
 	
-	public static final Resource MapRDFResource = new ResourceImpl(namespace + "Map");
+	static final Resource MapRDFResource = new ResourceImpl(entitiesNamespace + "Map");
 }

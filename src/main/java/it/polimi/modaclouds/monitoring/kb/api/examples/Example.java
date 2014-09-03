@@ -38,8 +38,8 @@ public class Example {
 			entity3.addElementToList("3");
 			entity3.addElementToList("4");
 			entity3.setString("Hello world!");
-			kb.add(Arrays.asList(new Object[]{entity1,entity2,entity3}), "id");
-			kb.deleteEntitiesByPropertyValues(Sets.newHashSet(new String[]{"1","2"}),"id");
+			kb.add(Arrays.asList(new Object[]{entity1,entity2,entity3}), "id","mygraph");
+			kb.deleteEntitiesByPropertyValues(Sets.newHashSet(new String[]{"1","2"}),"id","mygraph");
 		} catch (Exception e) {
 			e.printStackTrace();
 		}

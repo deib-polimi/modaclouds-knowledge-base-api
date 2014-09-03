@@ -16,12 +16,23 @@
  */
 package it.polimi.modaclouds.monitoring.kb.api;
 
-class VariableGenerator {
-	
-	private static int counter = 0;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 
-	static String getNew() {
-		return "?x"+counter++;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+public class Util {
+	
+	private static final Logger logger = LoggerFactory.getLogger(Util.class);
+
+	public static String urlEncode(String string) {
+		try {
+			return URLEncoder.encode(string,"UTF-8");
+		} catch (UnsupportedEncodingException e) {
+			logger.error("Internal error:",e);
+		}
+		return null;
 	}
 
 }

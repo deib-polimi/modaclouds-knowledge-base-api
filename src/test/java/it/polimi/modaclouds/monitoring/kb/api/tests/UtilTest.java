@@ -14,14 +14,18 @@
  *    See the License for the specific language governing permissions and
  *    limitations under the License.
  */
-package it.polimi.modaclouds.monitoring.kb.api;
+package it.polimi.modaclouds.monitoring.kb.api.tests;
 
-class VariableGenerator {
-	
-	private static int counter = 0;
+import static org.junit.Assert.*;
+import it.polimi.modaclouds.monitoring.kb.api.Util;
 
-	static String getNew() {
-		return "?x"+counter++;
+import org.junit.Test;
+
+public class UtilTest {
+
+	@Test
+	public void urlEncodeTest() {
+		assertNotNull(Util.urlEncode("Ciao // Ciao"));
 	}
 
 }

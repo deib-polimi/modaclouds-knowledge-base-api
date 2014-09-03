@@ -16,8 +16,6 @@
  */
 package it.polimi.modaclouds.monitoring.kb.api;
 
-import java.io.UnsupportedEncodingException;
-import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -96,28 +94,40 @@ public class FusekiKBAPI {
 	 * predicate map. map element [id, value] . map element [id, value] .
 	 */
 
-	private DatasetAccessor dataAccessor;
+	private DatasetAccessor datasetAccessor;
 
 	private String knowledgeBaseURL;
 
 	public FusekiKBAPI(String knowledgeBaseURL) {
 		this.knowledgeBaseURL = knowledgeBaseURL;
-		dataAccessor = DatasetAccessorFactory
+		datasetAccessor = DatasetAccessorFactory
 				.createHTTP(getKnowledgeBaseDataURL());
 	}
 
-	public void add(Iterable<?> entities, String idPropertyName)
-			throws SerializationException, DeserializationException {
+	public void add(Iterable<?> entities, String idPropertyName,
+			String graphName) throws SerializationException,
+			DeserializationException {
 		// TODO only one query should be done
 		for (Object e : entities) {
-			add(e, idPropertyName);
+			add(e, idPropertyName, graphName);
 		}
 	}
 
+	String getGraphURI(String graphName) {
+		if (graphName.equals("default"))
+			return graphName;
+		return Config.graphsNamespace + Util.urlEncode(graphName);
+	}
+
+	public String getGraphURL(String graphName) {
+		return knowledgeBaseURL + "/data?graph="
+				+ Util.urlEncode(getGraphURI(graphName));
+	}
+
 	/**
-	 * Adds the entity to the KB. If an entity with the same property
-	 * {@code idPropertyName} already exists, the old entity will be
-	 * overwritten.
+	 * Adds the entity to the default graph of the KB. If an entity with the
+	 * same property {@code idPropertyName} already exists in the default graph,
+	 * the old entity will be overwritten.
 	 * 
 	 * @param entity
 	 *            the entity to be persisted
@@ -127,13 +137,36 @@ public class FusekiKBAPI {
 	 * @throws SerializationException
 	 * @throws DeserializationException
 	 */
+
 	public void add(Object entity, String idPropertyName)
+			throws SerializationException, DeserializationException {
+		add(entity, idPropertyName, "default");
+	}
+
+	/**
+	 * Adds the entity to a specific graph in the KB. If an entity with the same
+	 * property {@code idPropertyName} already exists in the graph, the old
+	 * entity will be overwritten.
+	 * 
+	 * @param entity
+	 *            the entity to be persisted
+	 * @param idPropertyName
+	 *            the parameter name identifying the unique identifier of the
+	 *            entity
+	 * @param graphName
+	 *            the name of the graph where the entity should be persisted
+	 * @throws SerializationException
+	 * @throws DeserializationException
+	 */
+	public void add(Object entity, String idPropertyName, String graphName)
 			throws SerializationException, DeserializationException {
 		Preconditions.checkNotNull(idPropertyName);
 		Preconditions.checkNotNull(entity);
 		String entityId = getEntityId(entity, idPropertyName);
-		logger.info("Entity with {} {} received", idPropertyName, entityId);
-		String queryString = prepareAddQuery(entity, idPropertyName, entityId);
+		logger.info("Adding entity with {} {} to graph {}", idPropertyName,
+				entityId, graphName);
+		String queryString = prepareAddQuery(entity, idPropertyName, entityId,
+				graphName);
 		logger.info("Update query:\n{}", queryString);
 		UpdateRequest query = UpdateFactory.create(queryString,
 				Syntax.syntaxSPARQL_11);
@@ -154,7 +187,7 @@ public class FusekiKBAPI {
 				RDF.type.toString(),
 				getShortUriFromLocalName(javaClassSimpleName));
 		queryBody[INSERT_DATA_INDEX] += prepareLiteralTriple(subjectUri,
-				KBConfig.javaClassRDFProperty.toString(), javaClassName);
+				Config.javaClassRDFProperty.toString(), javaClassName);
 
 		for (String property : properties.keySet()) {
 			Object value = properties.get(property);
@@ -177,7 +210,7 @@ public class FusekiKBAPI {
 			Object object, String[] queryBody) throws SerializationException {
 		if (object instanceof Set<?>) {
 			String anonId = new AnonId(UUID.randomUUID().toString()).toString();
-			String anonUri = KBConfig.namespace + anonId;
+			String anonUri = Config.entitiesNamespace + anonId;
 			queryBody[INSERT_DATA_INDEX] += prepareTriple(subjectUri,
 					getShortUriFromLocalName(property), anonUri);
 			Set<?> setObjects = (Set<?>) object;
@@ -191,7 +224,7 @@ public class FusekiKBAPI {
 			}
 		} else if (object instanceof List<?>) {
 			String anonId = new AnonId(UUID.randomUUID().toString()).toString();
-			String anonUri = KBConfig.namespace + anonId;
+			String anonUri = Config.entitiesNamespace + anonId;
 			queryBody[INSERT_DATA_INDEX] += prepareTriple(subjectUri,
 					getShortUriFromLocalName(property), anonUri);
 			List<?> listObjects = (List<?>) object;
@@ -205,25 +238,26 @@ public class FusekiKBAPI {
 			}
 		} else if (object instanceof Map<?, ?>) {
 			String anonId = new AnonId(UUID.randomUUID().toString()).toString();
-			String anonUri = KBConfig.namespace + anonId;
+			String anonUri = Config.entitiesNamespace + anonId;
 			queryBody[INSERT_DATA_INDEX] += prepareTriple(subjectUri,
 					getShortUriFromLocalName(property), anonUri);
 			Map<?, ?> mapObjects = (Map<?, ?>) object;
 			queryBody[INSERT_DATA_INDEX] += prepareTriple(anonUri,
-					RDF.type.toString(), KBConfig.MapRDFResource.toString());
+					RDF.type.toString(), Config.MapRDFResource.toString());
 			int i = 0;
 			Set<?> keys = mapObjects.keySet();
 			for (Object key : keys) {
 				String internalAnonId = new AnonId(UUID.randomUUID().toString())
 						.toString();
-				String internalAnonUri = KBConfig.namespace + internalAnonId;
+				String internalAnonUri = Config.entitiesNamespace
+						+ internalAnonId;
 				queryBody[INSERT_DATA_INDEX] += prepareTriple(anonUri, RDF
 						.li(i).toString(), internalAnonUri);
 				queryBody[INSERT_DATA_INDEX] += prepareLiteralTriple(
-						internalAnonUri, KBConfig.keyRDFProperty.toString(),
+						internalAnonUri, Config.keyRDFProperty.toString(),
 						key.toString());
 				queryBody[INSERT_DATA_INDEX] += prepareLiteralTriple(
-						internalAnonUri, KBConfig.valueRDFProperty.toString(),
+						internalAnonUri, Config.valueRDFProperty.toString(),
 						mapObjects.get(key).toString());
 				i++;
 			}
@@ -235,15 +269,26 @@ public class FusekiKBAPI {
 
 	public void deleteAll(Set<?> entities, String idPropertyName)
 			throws SerializationException {
+		deleteAll(entities, idPropertyName, "default");
+	}
+
+	public void deleteAll(Set<?> entities, String idPropertyName,
+			String graphName) throws SerializationException {
 		Set<String> ids = new HashSet<String>();
 		for (Object entity : entities) {
 			ids.add(getEntityId(entity, idPropertyName));
 		}
-		deleteEntitiesByPropertyValues(ids, idPropertyName);
+		deleteEntitiesByPropertyValues(ids, idPropertyName, graphName);
 	}
 
 	public void deleteEntitiesByPropertyValues(Set<String> propertyValues,
 			String propertyName) throws SerializationException {
+		deleteEntitiesByPropertyValues(propertyValues, propertyName, "default");
+	}
+
+	public void deleteEntitiesByPropertyValues(Set<String> propertyValues,
+			String propertyName, String graphName)
+			throws SerializationException {
 		Preconditions.checkNotNull(propertyValues);
 		Preconditions.checkNotNull(propertyName);
 		Preconditions.checkArgument(!propertyValues.isEmpty());
@@ -263,10 +308,12 @@ public class FusekiKBAPI {
 				+ RDF.getURI()
 				+ "> "
 				+ "PREFIX "
-				+ KBConfig.uriPrefix
+				+ Config.uriPrefix
 				+ ":<"
-				+ KBConfig.namespace
+				+ Config.entitiesNamespace
 				+ "> "
+				+ (graphName.equals("default") ? "" : "WITH <"
+						+ getGraphURI(graphName) + "> ")
 				+ "DELETE { "
 				+ prepareTriple("?s", "?p", "?o")
 				+ prepareTriple("?o", "?p1", "?o1")
@@ -284,7 +331,7 @@ public class FusekiKBAPI {
 				+ "} "
 				+ "OPTIONAL { "
 				+ prepareTriple("?o", RDF.type.toString(),
-						KBConfig.MapRDFResource.toString())
+						Config.MapRDFResource.toString())
 				+ prepareTriple("?o", "?p1", "?o1")
 				+ prepareTriple("?o", "?p2", "?o2") + "}  }";
 		logger.info("Prepared delete Query:\n" + queryString);
@@ -297,14 +344,22 @@ public class FusekiKBAPI {
 
 	public void deleteEntitiesByPropertyValue(String propertyValue,
 			String propertyName) throws SerializationException {
+		deleteEntitiesByPropertyValue(propertyValue, propertyName, "default");
+	}
+
+	public void deleteEntitiesByPropertyValue(String propertyValue,
+			String propertyName, String graphName)
+			throws SerializationException {
 		String queryString = "PREFIX rdf:<"
 				+ RDF.getURI()
 				+ "> "
 				+ "PREFIX "
-				+ KBConfig.uriPrefix
+				+ Config.uriPrefix
 				+ ":<"
-				+ KBConfig.namespace
+				+ Config.entitiesNamespace
 				+ "> "
+				+ (graphName.equals("default") ? "" : "WITH <"
+						+ getGraphURI(graphName) + "> ")
 				+ "DELETE { "
 				+ prepareTriple("?s", "?p", "?o")
 				+ prepareLiteralTriple("?s",
@@ -325,7 +380,7 @@ public class FusekiKBAPI {
 				+ "} "
 				+ "OPTIONAL { "
 				+ prepareTriple("?o", RDF.type.toString(),
-						KBConfig.MapRDFResource.toString())
+						Config.MapRDFResource.toString())
 				+ prepareTriple("?o", "?p1", "?o1")
 				+ prepareTriple("?o", "?p2", "?o2") + "}  }";
 		logger.info("Prepared delete Query:\n" + queryString);
@@ -367,25 +422,34 @@ public class FusekiKBAPI {
 			queryBody[DELETE_WHERE_INDEX] += prepareTriple(subjectUri,
 					getShortUriFromLocalName(property), o);
 			queryBody[DELETE_WHERE_INDEX] += prepareTriple(o,
-					RDF.type.toString(), KBConfig.MapRDFResource.toString());
+					RDF.type.toString(), Config.MapRDFResource.toString());
 			queryBody[DELETE_WHERE_INDEX] += prepareTriple(o, p, o1);
 			queryBody[DELETE_WHERE_INDEX] += prepareTriple(o1,
-					KBConfig.keyRDFProperty.toString(), o2);
+					Config.keyRDFProperty.toString(), o2);
 			queryBody[DELETE_WHERE_INDEX] += prepareTriple(o1,
-					KBConfig.valueRDFProperty.toString(), o3);
+					Config.valueRDFProperty.toString(), o3);
 		} else {
 			queryBody[DELETE_DATA_INDEX] += prepareLiteralTriple(subjectUri,
 					getShortUriFromLocalName(property), object.toString());
 		}
 	}
 
-	@SuppressWarnings("unchecked")
 	public <T> Set<T> getAll(Class<T> entitiesClass)
 			throws DeserializationException {
+		return getAll(entitiesClass, "default");
+	}
+
+	@SuppressWarnings("unchecked")
+	public <T> Set<T> getAll(Class<T> entitiesClass, String graphName)
+			throws DeserializationException {
 		Set<T> entities = new HashSet<T>();
-		Model model = dataAccessor.getModel();
+		Model model = datasetAccessor.getModel(getGraphURI(graphName));
+		if (model == null) {
+			logger.warn("Graph {} does not exist yet", graphName);
+			return entities;
+		}
 		StmtIterator iter = model.listStatements(null,
-				KBConfig.javaClassRDFProperty, entitiesClass.getName());
+				Config.javaClassRDFProperty, entitiesClass.getName());
 		while (iter.hasNext()) {
 			entities.add((T) toJava(iter.next().getSubject(), model));
 		}
@@ -397,16 +461,26 @@ public class FusekiKBAPI {
 		return queryBody;
 	}
 
-	@SuppressWarnings({ "rawtypes", "unchecked" })
 	public Set<?> getEntitiesByPropertyValue(String property,
 			String propertyName) throws DeserializationException {
+		return getEntitiesByPropertyValue(property, propertyName, "default");
+	}
+
+	@SuppressWarnings({ "rawtypes", "unchecked" })
+	public Set<?> getEntitiesByPropertyValue(String property,
+			String propertyName, String graphName)
+			throws DeserializationException {
 		Preconditions.checkNotNull(property);
 		Preconditions.checkNotNull(propertyName);
 		Set entities = new HashSet();
-		Model model = dataAccessor.getModel();
+		Model model = datasetAccessor.getModel(getGraphURI(graphName));
+		if (model == null) {
+			logger.warn("Graph {} does not exist yet", graphName);
+			return entities;
+		}
 		Iterable<Resource> resources = getRDFResourcesByPropertyValue(
-				new PropertyImpl(KBConfig.namespace, propertyName), property,
-				model);
+				new PropertyImpl(Config.entitiesNamespace, propertyName),
+				property, model);
 		if (resources != null) {
 			for (Resource resource : resources) {
 				entities.add(toJava(resource, model));
@@ -417,11 +491,20 @@ public class FusekiKBAPI {
 
 	public Object getEntityById(String id, String idPropertyName)
 			throws DeserializationException {
+		return getEntityById(id, idPropertyName, "default");
+	}
+
+	public Object getEntityById(String id, String idPropertyName,
+			String graphName) throws DeserializationException {
 		Preconditions.checkNotNull(idPropertyName);
 		Preconditions.checkNotNull(id);
-		Model model = dataAccessor.getModel();
+		Model model = datasetAccessor.getModel(getGraphURI(graphName));
+		if (model == null) {
+			logger.warn("Graph {} does not exist yet", graphName);
+			return null;
+		}
 		Resource resource = getRDFResourceByPropertyValue(new PropertyImpl(
-				KBConfig.namespace, idPropertyName), id, model);
+				Config.entitiesNamespace, idPropertyName), id, model);
 		if (resource == null) {
 			logger.warn("No entity found with {} {} on the KB", idPropertyName,
 					id);
@@ -449,17 +532,27 @@ public class FusekiKBAPI {
 	}
 
 	public Set<String> getIds(Class<?> entitiesClass, String idPropertyName) {
+		return getIds(entitiesClass, idPropertyName, "default");
+	}
+
+	public Set<String> getIds(Class<?> entitiesClass, String idPropertyName,
+			String graphName) {
 		Set<String> ids = new HashSet<String>();
-		Model model = dataAccessor.getModel();
+		Model model = datasetAccessor.getModel(getGraphURI(graphName));
+		if (model == null) {
+			logger.warn("Graph {} does not exist yet", graphName);
+			return ids;
+		}
 		StmtIterator iter = model.listStatements(null,
-				KBConfig.javaClassRDFProperty, entitiesClass.getName());
+				Config.javaClassRDFProperty, entitiesClass.getName());
 		while (iter.hasNext()) {
 			ids.add(iter
 					.nextStatement()
 					.getSubject()
 					.getProperty(
-							new PropertyImpl(KBConfig.namespace, idPropertyName))
-					.getObject().asLiteral().toString());
+							new PropertyImpl(Config.entitiesNamespace,
+									idPropertyName)).getObject().asLiteral()
+					.toString());
 		}
 		return ids;
 	}
@@ -467,7 +560,7 @@ public class FusekiKBAPI {
 	private Class<?> getJavaClass(Resource resource, Model model)
 			throws ClassNotFoundException {
 		RDFNode rdfValue = getRDFPropertyValue(resource,
-				KBConfig.javaClassRDFProperty, model);
+				Config.javaClassRDFProperty, model);
 		String javaClass = rdfValue.asLiteral().getString();
 		return Class.forName(javaClass);
 	}
@@ -526,48 +619,59 @@ public class FusekiKBAPI {
 		return Sets.newHashSet(iterator);
 	}
 
-	private String getShortUriFromLocalName(String localname)
-			throws SerializationException {
-		try {
-			return KBConfig.uriPrefix + ":"
-					+ URLEncoder.encode(localname, "UTF-8");
-		} catch (UnsupportedEncodingException e) {
-			throw new SerializationException(e);
-		}
+	private String getShortUriFromLocalName(String localname) {
+		return Config.uriPrefix + ":" + Util.urlEncode(localname);
 	}
 
-	private String getUriFromLocalName(String localname)
-			throws SerializationException {
-		try {
-			return KBConfig.namespace + URLEncoder.encode(localname, "UTF-8");
-		} catch (UnsupportedEncodingException e) {
-			throw new SerializationException(e);
-		}
+	private String getUriFromLocalName(String localname) {
+		return Config.entitiesNamespace + Util.urlEncode(localname);
 	}
 
 	private String prepareAddQuery(Object entity, String idPropertyName,
-			String entityId) throws SerializationException,
+			String entityId, String graphName) throws SerializationException,
 			DeserializationException {
-		String[] queryBody = prepareAddQueryBody(entity, idPropertyName,
-				entityId);
-		String queryString = "PREFIX " + KBConfig.uriPrefix + ":<"
-				+ KBConfig.namespace + "> PREFIX rdf:<" + RDF.getURI() + "> "
-				+ "DELETE DATA { " + queryBody[DELETE_DATA_INDEX]
-				+ " } ; DELETE { " + queryBody[DELETE_INDEX] + " } WHERE { "
-				+ queryBody[WHERE_4_DELETE_INDEX] + " } ; DELETE WHERE { "
-				+ queryBody[DELETE_WHERE_INDEX] + " } ; INSERT DATA { "
-				+ queryBody[INSERT_DATA_INDEX] + " } ; INSERT { "
+		Object oldEntity = getEntityById(entityId, idPropertyName, graphName);
+		String[] queryBody = prepareAddQueryBody(entity, oldEntity,
+				idPropertyName, entityId);
+		String queryString = "PREFIX "
+				+ Config.uriPrefix
+				+ ":<"
+				+ Config.entitiesNamespace
+				+ "> PREFIX rdf:<"
+				+ RDF.getURI()
+				+ "> "
+				+ "DELETE DATA { "
+				+ inGraph(queryBody[DELETE_DATA_INDEX], graphName)
+				+ " } ; "
+				+ (graphName.equals("default") ? "" : "WITH <"
+						+ getGraphURI(graphName) + "> ")
+				+ "DELETE { "
+				+ queryBody[DELETE_INDEX]
+				+ " } WHERE { "
+				+ queryBody[WHERE_4_DELETE_INDEX]
+				+ " } ; DELETE WHERE { "
+				+ inGraph(queryBody[DELETE_WHERE_INDEX], graphName)
+				+ " } ; INSERT DATA { "
+				+ inGraph(queryBody[INSERT_DATA_INDEX], graphName)
+				+ " } ; "
+				+ (graphName.equals("default") ? "" : "WITH <"
+						+ getGraphURI(graphName) + "> ") + "INSERT { "
 				+ queryBody[INSERT_INDEX] + " } WHERE { "
 				+ queryBody[WHERE_4_INSERT_INDEX] + " } ";
 		return queryString;
 	}
 
-	private String[] prepareAddQueryBody(Object newEntity,
+	private String inGraph(String body, String graphName) {
+		if (graphName.equals("default"))
+			return body;
+		return "GRAPH <" + getGraphURI(graphName) + "> { " + body + "} ";
+	}
+
+	private String[] prepareAddQueryBody(Object newEntity, Object oldEntity,
 			String idPropertyName, String entityId)
 			throws SerializationException, DeserializationException {
 		String[] queryBody = getEmptyQueryBody();
 		Map<String, Object> newProperties = getJavaProperties(newEntity);
-		Object oldEntity = getEntityById(entityId, idPropertyName);
 		if (oldEntity == null) {
 			logger.info("Adding new entity with {} {}", idPropertyName,
 					entityId);
@@ -587,10 +691,10 @@ public class FusekiKBAPI {
 						RDF.type.toString(),
 						getShortUriFromLocalName(newClass.getSimpleName()));
 				queryBody[DELETE_DATA_INDEX] += prepareLiteralTriple(
-						subjectUri, KBConfig.javaClassRDFProperty.toString(),
+						subjectUri, Config.javaClassRDFProperty.toString(),
 						oldClass.getName());
 				queryBody[INSERT_DATA_INDEX] += prepareLiteralTriple(
-						subjectUri, KBConfig.javaClassRDFProperty.toString(),
+						subjectUri, Config.javaClassRDFProperty.toString(),
 						newClass.getName());
 			}
 
@@ -652,7 +756,7 @@ public class FusekiKBAPI {
 				&& !rdfObject.asResource().hasProperty(RDF.type, RDF.Bag)
 				&& !rdfObject.asResource().hasProperty(RDF.type, RDF.Seq)
 				&& !rdfObject.asResource().hasProperty(RDF.type,
-						KBConfig.MapRDFResource);
+						Config.MapRDFResource);
 	}
 
 	@SuppressWarnings({ "rawtypes", "unchecked" })
@@ -664,7 +768,7 @@ public class FusekiKBAPI {
 			StmtIterator propIterator = model
 					.listStatements(new SkipPropertiesSelector(rdfNode
 							.asResource(), RDF.type,
-							KBConfig.javaClassRDFProperty));
+							Config.javaClassRDFProperty));
 			if (rdfNode.asResource().hasProperty(RDF.type, RDF.Bag)) {
 				entity = new HashSet();
 				while (propIterator.hasNext()) {
@@ -678,16 +782,16 @@ public class FusekiKBAPI {
 							model));
 				}
 			} else if (rdfNode.asResource().hasProperty(RDF.type,
-					KBConfig.MapRDFResource)) {
+					Config.MapRDFResource)) {
 				entity = new HashMap();
 				while (propIterator.hasNext()) {
 					Resource mapNode = propIterator.next().getObject()
 							.asResource();
-					RDFNode keyNode = mapNode.getProperty(
-							KBConfig.keyRDFProperty).getObject();
+					RDFNode keyNode = mapNode
+							.getProperty(Config.keyRDFProperty).getObject();
 
 					RDFNode valueNode = mapNode.getProperty(
-							KBConfig.valueRDFProperty).getObject();
+							Config.valueRDFProperty).getObject();
 					Object key = toJava(keyNode, model);
 					Object value = toJava(valueNode, model);
 					((Map) entity).put(key, value);
@@ -724,59 +828,8 @@ public class FusekiKBAPI {
 		return entity;
 	}
 
-	// concatenate strings
-	// private void concatBodies(String[] body1, String[] body2) {
-	// assert body1.length == body2.length;
-	// for (int i = 0; i < body1.length; i++) {
-	// body1[i] += body2[i];
-	// }
-	// }
-
-	// public Set<KBEntity> getByPropertyValue(String property, String value) {
-	// Set<KBEntity> entities = new HashSet<KBEntity>();
-	// // TODO avoid downloading entire model
-	// Model model = dataAccessor.getModel();
-	// if (value != null) {
-	// StmtIterator iter = model.listStatements(null, ResourceFactory
-	// .createProperty(EntityManager.getKBPropertyURI(property)),
-	// value);
-	// while (iter.hasNext()) {
-	// Resource r = iter.nextStatement().getSubject();
-	// entities.add(EntityManager.toJava(r, model,
-	// this.entitiesPackage));
-	// }
-	// } else {
-	// StmtIterator iter = model.listStatements(null, ResourceFactory
-	// .createProperty(EntityManager.getKBPropertyURI(property)),
-	// (RDFNode) null);
-	// while (iter.hasNext()) {
-	// Resource r = iter.nextStatement().getSubject();
-	// entities.add(EntityManager.toJava(r, model,
-	// this.entitiesPackage));
-	// }
-	// }
-	// return entities;
-	// }
-
-	public void uploadOntology(OntModel model) {
-		dataAccessor.add(model);
+	public void uploadOntology(OntModel model, String graphName) {
+		datasetAccessor.add(graphName, model);
 	}
 
-	// public <T extends KBEntity> Set<T> getAll(Class<T> subjectEntityClass,
-	// String property, String object) { // THINK ABOUT SETS, LISTS, MAPS...
-	// Set<T> entities = new HashSet<T>();
-	// // TODO avoid downloading entire model
-	// Model model = dataAccessor.getModel();
-	// StmtIterator iter = model.listStatements(null,
-	// ResourceFactory.createProperty(KBEntity.uriBase + property),
-	// ResourceFactory.createPlainLiteral(object));
-	//
-	// while (iter.hasNext()) {
-	// Resource r = iter.nextStatement().getSubject();
-	// if (r.hasURI(EntityManager.getKBClassURI(subjectEntityClass)))
-	// entities.add((T) EntityManager.toJava(r, model,
-	// this.class_package));
-	// }
-	// return entities;
-	// }
 }
