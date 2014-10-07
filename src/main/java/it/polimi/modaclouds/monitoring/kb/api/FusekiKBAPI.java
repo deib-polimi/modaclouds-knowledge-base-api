@@ -113,14 +113,14 @@ public class FusekiKBAPI {
 		}
 	}
 
-	String getGraphURI(String graphName) {
+	static String getGraphURI(String graphName) {
 		if (graphName.equals("default"))
 			return graphName;
 		return Config.graphsNamespace + Util.urlEncode(graphName);
 	}
 
-	public String getGraphURL(String graphName) {
-		return knowledgeBaseURL + "/data?graph="
+	public static String getGraphURL(String kbURL, String graphName) {
+		return kbURL + "/data?graph="
 				+ Util.urlEncode(getGraphURI(graphName));
 	}
 
@@ -736,8 +736,8 @@ public class FusekiKBAPI {
 			s = "<" + s + ">";
 		if (p.contains("/"))
 			p = "<" + p + ">";
-		if (o.contains("/"))
-			o = "<" + o + ">";
+//		if (o.contains("/"))
+//			o = "<" + o + ">";
 		return s + " " + p + " \"" + o + "\" . ";
 	}
 
@@ -829,7 +829,7 @@ public class FusekiKBAPI {
 	}
 
 	public void uploadOntology(OntModel model, String graphName) {
-		datasetAccessor.add(graphName, model);
+		datasetAccessor.add(getGraphURI(graphName), model);
 	}
 
 }

@@ -21,7 +21,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>it.polimi.modaclouds.monitoring.knowledge-base-api</groupId>
 	<artifactId>knowledge-base-api</artifactId>
-	<version>2.1</version>
+	<version>2.2-SNAPSHOT</version>
 	<name>MODAClouds Knowledge Base API</name>
 	<packaging>jar</packaging>
 	<inceptionYear>2014</inceptionYear>
@@ -123,7 +123,7 @@
 
 	<build>
 		<plugins>
-			<plugin>
+			<!-- <plugin>
 				<artifactId>maven-assembly-plugin</artifactId>
 				<configuration>
 					<archive>
@@ -137,7 +137,7 @@
 						<descriptorRef>jar-with-dependencies</descriptorRef>
 					</descriptorRefs>
 				</configuration>
-			</plugin>
+			</plugin> -->
 			<plugin>
 				<artifactId>maven-deploy-plugin</artifactId>
 				<version>2.8.1</version>
@@ -250,7 +250,7 @@
 					</execution>
 				</executions>
 			</plugin>
-			<plugin>
+			<!-- <plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
 				<version>2.17</version>
@@ -259,7 +259,7 @@
 						<include>${runSuite}</include>
 					</includes>
 				</configuration>
-			</plugin>
+			</plugin> -->
 		</plugins>
 	</build>
 
