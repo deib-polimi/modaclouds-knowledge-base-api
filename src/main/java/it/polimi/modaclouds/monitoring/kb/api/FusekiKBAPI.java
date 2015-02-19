@@ -113,7 +113,7 @@ public class FusekiKBAPI {
 		}
 	}
 
-	static String getGraphURI(String graphName) {
+	public static String getGraphURI(String graphName) {
 		if (graphName.equals("default"))
 			return graphName;
 		return Config.graphsNamespace + Util.urlEncode(graphName);
@@ -830,6 +830,22 @@ public class FusekiKBAPI {
 
 	public void uploadOntology(OntModel model, String graphName) {
 		datasetAccessor.add(getGraphURI(graphName), model);
+	}
+
+	public void clearGraph(String graphName) {
+		UpdateRequest query = UpdateFactory.create("CLEAR GRAPH <" + getGraphURI(graphName) + ">",
+				Syntax.syntaxSPARQL_11);
+		UpdateProcessor execUpdate = UpdateExecutionFactory.createRemote(query,
+				getKnowledgeBaseUpdateURL());
+		execUpdate.execute();
+	}
+
+	public void clearAll() {
+		UpdateRequest query = UpdateFactory.create("CLEAR ALL",
+				Syntax.syntaxSPARQL_11);
+		UpdateProcessor execUpdate = UpdateExecutionFactory.createRemote(query,
+				getKnowledgeBaseUpdateURL());
+		execUpdate.execute();
 	}
 
 }

@@ -22,11 +22,12 @@ import com.hp.hpl.jena.rdf.model.impl.PropertyImpl;
 import com.hp.hpl.jena.rdf.model.impl.ResourceImpl;
 
 
-class Config {
+public class Config {
+	
+	public static String graphsNamespace = "http://www.modaclouds.eu/rdfs/1.0/graphs#";
 
-	// TODO namespace and uriPrefix are both here and in qos-models
+	// TODO entitiesNamespace and uriPrefix are both here and in qos-models
 	static final String entitiesNamespace = "http://www.modaclouds.eu/rdfs/1.0/entities#";
-	static final String graphsNamespace = "http://www.modaclouds.eu/rdfs/1.0/graphs#";
 	static final String uriPrefix = "modaent";
 	
 	static final String javaClassProperty = "class";
