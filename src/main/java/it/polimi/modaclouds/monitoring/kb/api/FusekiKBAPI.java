@@ -79,22 +79,14 @@ public class FusekiKBAPI {
 
 	private Logger logger = LoggerFactory.getLogger(FusekiKBAPI.class);
 	private static final int DELETE_DATA_INDEX = 0;
-	private static final int INSERT_DATA_INDEX = 1;
-	private static final int INSERT_INDEX = 2;
-	private static final int DELETE_WHERE_INDEX = 3;
-	private static final int WHERE_4_INSERT_INDEX = 4;
-	private static final int WHERE_4_DELETE_INDEX = 5;
-	private static final int DELETE_INDEX = 6;
+	private static final int DELETE_INDEX = 1;
+	private static final int DELETE_WHERE_INDEX = 2;
+	private static final int WHERE_4_DELETE_INDEX = 3;
+	private static final int INSERT_DATA_INDEX = 4;
+	private static final int INSERT_INDEX = 5;
+	private static final int WHERE_4_INSERT_INDEX = 6;
 
-	/*
-	 * Serialization: - Set -> Bag (using the rdf:_1, rdf:_2... properties,
-	 * these are rdf:li subproperties) - List -> Seq (using the rdf:_1,
-	 * rdf:_2... properties, these are rdf:li subproperties) - Map -> custom
-	 * construct, same format of the containers with custom type (map) -> entity
-	 * predicate map. map element [id, value] . map element [id, value] .
-	 */
-
-	private DatasetAccessor datasetAccessor;
+	DatasetAccessor datasetAccessor;
 
 	private String knowledgeBaseURL;
 
@@ -120,8 +112,7 @@ public class FusekiKBAPI {
 	}
 
 	public static String getGraphURL(String kbURL, String graphName) {
-		return kbURL + "/data?graph="
-				+ Util.urlEncode(getGraphURI(graphName));
+		return kbURL + "/data?graph=" + Util.urlEncode(getGraphURI(graphName));
 	}
 
 	/**
@@ -137,7 +128,6 @@ public class FusekiKBAPI {
 	 * @throws SerializationException
 	 * @throws DeserializationException
 	 */
-
 	public void add(Object entity, String idPropertyName)
 			throws SerializationException, DeserializationException {
 		add(entity, idPropertyName, "default");
@@ -165,8 +155,11 @@ public class FusekiKBAPI {
 		String entityId = getEntityId(entity, idPropertyName);
 		logger.info("Adding entity with {} {} to graph {}", idPropertyName,
 				entityId, graphName);
-		String queryString = prepareAddQuery(entity, idPropertyName, entityId,
-				graphName);
+		String[] queryBody = getEmptyQueryBody();
+		prepareDeleteByPropertyValueQueryBody(entityId, idPropertyName,
+				queryBody);
+		prepareAddQueryBody(entity, idPropertyName, entityId, queryBody);
+		String queryString = prepareQueryFromBody(graphName, queryBody);
 		logger.info("Update query:\n{}", queryString);
 		UpdateRequest query = UpdateFactory.create(queryString,
 				Syntax.syntaxSPARQL_11);
@@ -175,72 +168,42 @@ public class FusekiKBAPI {
 		execUpdate.execute();
 	}
 
-	private void addNewEntity(String entityId, Object entity,
-			Map<String, Object> properties, String[] queryBody)
+	private void addNewProperty(String subjectUri, String propertyUri,
+			Object object, String idPropertyName, String[] queryBody)
 			throws SerializationException {
-
-		String javaClassName = entity.getClass().getName();
-		String javaClassSimpleName = entity.getClass().getSimpleName();
-		String subjectUri = getShortUriFromLocalName(entityId);
-
-		queryBody[INSERT_DATA_INDEX] += prepareTriple(subjectUri,
-				RDF.type.toString(),
-				getShortUriFromLocalName(javaClassSimpleName));
-		queryBody[INSERT_DATA_INDEX] += prepareLiteralTriple(subjectUri,
-				Config.javaClassRDFProperty.toString(), javaClassName);
-
-		for (String property : properties.keySet()) {
-			Object value = properties.get(property);
-			if (value != null) {
-				addNewProperty(subjectUri, property, value, queryBody);
-			}
-		}
-	}
-
-	/**
-	 * Only strings and sets/lists/maps of strings are persisted
-	 * 
-	 * @param subjectUri
-	 * @param property
-	 * @param object
-	 * @param queryBody
-	 * @throws SerializationException
-	 */
-	private void addNewProperty(String subjectUri, String property,
-			Object object, String[] queryBody) throws SerializationException {
 		if (object instanceof Set<?>) {
 			String anonId = new AnonId(UUID.randomUUID().toString()).toString();
 			String anonUri = Config.entitiesNamespace + anonId;
 			queryBody[INSERT_DATA_INDEX] += prepareTriple(subjectUri,
-					getShortUriFromLocalName(property), anonUri);
+					propertyUri, anonUri);
 			Set<?> setObjects = (Set<?>) object;
 			queryBody[INSERT_DATA_INDEX] += prepareTriple(anonUri,
 					RDF.type.toString(), RDF.Bag.toString());
 			int i = 0;
 			for (Object obj : setObjects) {
-				queryBody[INSERT_DATA_INDEX] += prepareLiteralTriple(anonUri,
-						RDF.li(i).toString(), obj.toString());
+				addNewProperty(anonUri, RDF.li(i).toString(), obj,
+						idPropertyName, queryBody);
 				i++;
 			}
 		} else if (object instanceof List<?>) {
 			String anonId = new AnonId(UUID.randomUUID().toString()).toString();
 			String anonUri = Config.entitiesNamespace + anonId;
 			queryBody[INSERT_DATA_INDEX] += prepareTriple(subjectUri,
-					getShortUriFromLocalName(property), anonUri);
+					propertyUri, anonUri);
 			List<?> listObjects = (List<?>) object;
 			queryBody[INSERT_DATA_INDEX] += prepareTriple(anonUri,
 					RDF.type.toString(), RDF.Seq.toString());
 			int i = 0;
 			for (Object obj : listObjects) {
-				queryBody[INSERT_DATA_INDEX] += prepareLiteralTriple(anonUri,
-						RDF.li(i).toString(), obj.toString());
+				addNewProperty(anonUri, RDF.li(i).toString(), obj,
+						idPropertyName, queryBody);
 				i++;
 			}
 		} else if (object instanceof Map<?, ?>) {
 			String anonId = new AnonId(UUID.randomUUID().toString()).toString();
 			String anonUri = Config.entitiesNamespace + anonId;
 			queryBody[INSERT_DATA_INDEX] += prepareTriple(subjectUri,
-					getShortUriFromLocalName(property), anonUri);
+					propertyUri, anonUri);
 			Map<?, ?> mapObjects = (Map<?, ?>) object;
 			queryBody[INSERT_DATA_INDEX] += prepareTriple(anonUri,
 					RDF.type.toString(), Config.MapRDFResource.toString());
@@ -253,17 +216,21 @@ public class FusekiKBAPI {
 						+ internalAnonId;
 				queryBody[INSERT_DATA_INDEX] += prepareTriple(anonUri, RDF
 						.li(i).toString(), internalAnonUri);
-				queryBody[INSERT_DATA_INDEX] += prepareLiteralTriple(
-						internalAnonUri, Config.keyRDFProperty.toString(),
-						key.toString());
-				queryBody[INSERT_DATA_INDEX] += prepareLiteralTriple(
-						internalAnonUri, Config.valueRDFProperty.toString(),
-						mapObjects.get(key).toString());
+				addNewProperty(internalAnonUri,
+						Config.keyRDFProperty.toString(), key, idPropertyName,
+						queryBody);
+				addNewProperty(internalAnonUri,
+						Config.valueRDFProperty.toString(),
+						mapObjects.get(key), idPropertyName, queryBody);
 				i++;
 			}
-		} else {
+		} else if (object instanceof String) {
 			queryBody[INSERT_DATA_INDEX] += prepareLiteralTriple(subjectUri,
-					getShortUriFromLocalName(property), object.toString());
+					propertyUri, object.toString());
+		} else { // it's an entity
+			String entityId = getEntityId(object, idPropertyName);
+			queryBody[INSERT_DATA_INDEX] += prepareTriple(subjectUri,
+					propertyUri, getShortUriFromLocalName(entityId));
 		}
 	}
 
@@ -292,6 +259,23 @@ public class FusekiKBAPI {
 		Preconditions.checkNotNull(propertyValues);
 		Preconditions.checkNotNull(propertyName);
 		Preconditions.checkArgument(!propertyValues.isEmpty());
+
+		String[] queryBody = getEmptyQueryBody();
+
+		prepareDeleteByPropertyValuesQueryBody(propertyValues, propertyName,
+				queryBody);
+
+		String queryString = prepareQueryFromBody(graphName, queryBody);
+		logger.info("Prepared delete Query:\n" + queryString);
+		UpdateRequest query = UpdateFactory.create(queryString,
+				Syntax.syntaxSPARQL_11);
+		UpdateProcessor execUpdate = UpdateExecutionFactory.createRemote(query,
+				getKnowledgeBaseUpdateURL());
+		execUpdate.execute();
+	}
+
+	private void prepareDeleteByPropertyValuesQueryBody(
+			Set<String> propertyValues, String propertyName, String[] queryBody) {
 		String unionBlock = "{ ";
 		int left = propertyValues.size();
 		for (String value : propertyValues) {
@@ -304,22 +288,10 @@ public class FusekiKBAPI {
 		}
 		unionBlock += "} . ";
 
-		String queryString = "PREFIX rdf:<"
-				+ RDF.getURI()
-				+ "> "
-				+ "PREFIX "
-				+ Config.uriPrefix
-				+ ":<"
-				+ Config.entitiesNamespace
-				+ "> "
-				+ (graphName.equals("default") ? "" : "WITH <"
-						+ getGraphURI(graphName) + "> ")
-				+ "DELETE { "
-				+ prepareTriple("?s", "?p", "?o")
+		queryBody[DELETE_INDEX] += prepareTriple("?s", "?p", "?o")
 				+ prepareTriple("?o", "?p1", "?o1")
-				+ prepareTriple("?o", "?p2", "?o2")
-				+ " } WHERE { "
-				+ unionBlock
+				+ prepareTriple("?o", "?p2", "?o2");
+		queryBody[WHERE_4_DELETE_INDEX] += unionBlock
 				+ prepareTriple("?s", "?p", "?o")
 				+ "OPTIONAL { "
 				+ prepareTriple("?o", RDF.type.toString(), RDF.Seq.toString())
@@ -333,13 +305,7 @@ public class FusekiKBAPI {
 				+ prepareTriple("?o", RDF.type.toString(),
 						Config.MapRDFResource.toString())
 				+ prepareTriple("?o", "?p1", "?o1")
-				+ prepareTriple("?o", "?p2", "?o2") + "}  }";
-		logger.info("Prepared delete Query:\n" + queryString);
-		UpdateRequest query = UpdateFactory.create(queryString,
-				Syntax.syntaxSPARQL_11);
-		UpdateProcessor execUpdate = UpdateExecutionFactory.createRemote(query,
-				getKnowledgeBaseUpdateURL());
-		execUpdate.execute();
+				+ prepareTriple("?o", "?p2", "?o2");
 	}
 
 	public void deleteEntitiesByPropertyValue(String propertyValue,
@@ -350,25 +316,34 @@ public class FusekiKBAPI {
 	public void deleteEntitiesByPropertyValue(String propertyValue,
 			String propertyName, String graphName)
 			throws SerializationException {
-		String queryString = "PREFIX rdf:<"
-				+ RDF.getURI()
-				+ "> "
-				+ "PREFIX "
-				+ Config.uriPrefix
-				+ ":<"
-				+ Config.entitiesNamespace
-				+ "> "
-				+ (graphName.equals("default") ? "" : "WITH <"
-						+ getGraphURI(graphName) + "> ")
-				+ "DELETE { "
-				+ prepareTriple("?s", "?p", "?o")
+
+		String[] queryBody = getEmptyQueryBody();
+		prepareDeleteByPropertyValueQueryBody(propertyValue, propertyName,
+				queryBody);
+
+		String queryString = prepareQueryFromBody(graphName, queryBody);
+		logger.info("Prepared delete Query:\n" + queryString);
+		UpdateRequest query = UpdateFactory.create(queryString,
+				Syntax.syntaxSPARQL_11);
+		UpdateProcessor execUpdate = UpdateExecutionFactory.createRemote(query,
+				getKnowledgeBaseUpdateURL());
+		execUpdate.execute();
+	}
+
+	private void prepareDeleteByPropertyValueQueryBody(String propertyValue,
+			String propertyName, String[] queryBody) {
+		queryBody[DELETE_INDEX] += prepareTriple("?s", "?p", "?o")
 				+ prepareLiteralTriple("?s",
 						getShortUriFromLocalName(propertyName), propertyValue)
 				+ prepareTriple("?o", "?p1", "?o1")
-				+ prepareTriple("?o", "?p2", "?o2")
-				+ " } WHERE { "
-				+ prepareLiteralTriple("?s",
-						getShortUriFromLocalName(propertyName), propertyValue)
+				+ prepareTriple("?o1", "?p2", "?o2")
+				+ prepareTriple("?o1", "?p3", "?o3")
+				+ prepareTriple("?o", RDF.type.toString(), RDF.Seq.toString())
+				+ prepareTriple("?o", RDF.type.toString(), RDF.Bag.toString())
+				+ prepareTriple("?o", RDF.type.toString(),
+						Config.MapRDFResource.toString());
+		queryBody[WHERE_4_DELETE_INDEX] += prepareLiteralTriple("?s",
+				getShortUriFromLocalName(propertyName), propertyValue)
 				+ prepareTriple("?s", "?p", "?o")
 				+ "OPTIONAL { "
 				+ prepareTriple("?o", RDF.type.toString(), RDF.Seq.toString())
@@ -382,56 +357,8 @@ public class FusekiKBAPI {
 				+ prepareTriple("?o", RDF.type.toString(),
 						Config.MapRDFResource.toString())
 				+ prepareTriple("?o", "?p1", "?o1")
-				+ prepareTriple("?o", "?p2", "?o2") + "}  }";
-		logger.info("Prepared delete Query:\n" + queryString);
-		UpdateRequest query = UpdateFactory.create(queryString,
-				Syntax.syntaxSPARQL_11);
-		UpdateProcessor execUpdate = UpdateExecutionFactory.createRemote(query,
-				getKnowledgeBaseUpdateURL());
-		execUpdate.execute();
-	}
-
-	/**
-	 * 
-	 * @param subjectUri
-	 * @param property
-	 * @param object
-	 * @param queryBody
-	 * @throws SerializationException
-	 */
-	private void deleteProperty(String subjectUri, String property,
-			Object object, String[] queryBody) throws SerializationException {
-		String o = VariableGenerator.getNew();
-		String p = VariableGenerator.getNew();
-		String o1 = VariableGenerator.getNew();
-		String o2 = VariableGenerator.getNew();
-		String o3 = VariableGenerator.getNew();
-		if (object instanceof Set<?>) {
-			queryBody[DELETE_WHERE_INDEX] += prepareTriple(subjectUri,
-					getShortUriFromLocalName(property), o);
-			queryBody[DELETE_WHERE_INDEX] += prepareTriple(o,
-					RDF.type.toString(), RDF.Bag.toString());
-			queryBody[DELETE_WHERE_INDEX] += prepareTriple(o, p, o1);
-		} else if (object instanceof List<?>) {
-			queryBody[DELETE_WHERE_INDEX] += prepareTriple(subjectUri,
-					getShortUriFromLocalName(property), o);
-			queryBody[DELETE_WHERE_INDEX] += prepareTriple(o,
-					RDF.type.toString(), RDF.Seq.toString());
-			queryBody[DELETE_WHERE_INDEX] += prepareTriple(o, p, o1);
-		} else if (object instanceof Map<?, ?>) {
-			queryBody[DELETE_WHERE_INDEX] += prepareTriple(subjectUri,
-					getShortUriFromLocalName(property), o);
-			queryBody[DELETE_WHERE_INDEX] += prepareTriple(o,
-					RDF.type.toString(), Config.MapRDFResource.toString());
-			queryBody[DELETE_WHERE_INDEX] += prepareTriple(o, p, o1);
-			queryBody[DELETE_WHERE_INDEX] += prepareTriple(o1,
-					Config.keyRDFProperty.toString(), o2);
-			queryBody[DELETE_WHERE_INDEX] += prepareTriple(o1,
-					Config.valueRDFProperty.toString(), o3);
-		} else {
-			queryBody[DELETE_DATA_INDEX] += prepareLiteralTriple(subjectUri,
-					getShortUriFromLocalName(property), object.toString());
-		}
+				+ prepareTriple("?o1", "?p2", "?o2")
+				+ prepareTriple("?o1", "?p3", "?o3") + "} ";
 	}
 
 	public <T> Set<T> getAll(Class<T> entitiesClass)
@@ -500,13 +427,13 @@ public class FusekiKBAPI {
 		Preconditions.checkNotNull(id);
 		Model model = datasetAccessor.getModel(getGraphURI(graphName));
 		if (model == null) {
-			logger.warn("Graph {} does not exist yet", graphName);
+			logger.info("Graph {} does not exist yet", graphName);
 			return null;
 		}
 		Resource resource = getRDFResourceByPropertyValue(new PropertyImpl(
 				Config.entitiesNamespace, idPropertyName), id, model);
 		if (resource == null) {
-			logger.warn("No entity found with {} {} on the KB", idPropertyName,
+			logger.info("No entity found with {} {} on the KB", idPropertyName,
 					id);
 			return null;
 		}
@@ -561,6 +488,8 @@ public class FusekiKBAPI {
 			throws ClassNotFoundException {
 		RDFNode rdfValue = getRDFPropertyValue(resource,
 				Config.javaClassRDFProperty, model);
+		if (rdfValue == null)
+			return null;
 		String javaClass = rdfValue.asLiteral().getString();
 		return Class.forName(javaClass);
 	}
@@ -623,16 +552,7 @@ public class FusekiKBAPI {
 		return Config.uriPrefix + ":" + Util.urlEncode(localname);
 	}
 
-	private String getUriFromLocalName(String localname) {
-		return Config.entitiesNamespace + Util.urlEncode(localname);
-	}
-
-	private String prepareAddQuery(Object entity, String idPropertyName,
-			String entityId, String graphName) throws SerializationException,
-			DeserializationException {
-		Object oldEntity = getEntityById(entityId, idPropertyName, graphName);
-		String[] queryBody = prepareAddQueryBody(entity, oldEntity,
-				idPropertyName, entityId);
+	private String prepareQueryFromBody(String graphName, String[] queryBody) {
 		String queryString = "PREFIX "
 				+ Config.uriPrefix
 				+ ":<"
@@ -667,68 +587,28 @@ public class FusekiKBAPI {
 		return "GRAPH <" + getGraphURI(graphName) + "> { " + body + "} ";
 	}
 
-	private String[] prepareAddQueryBody(Object newEntity, Object oldEntity,
-			String idPropertyName, String entityId)
-			throws SerializationException, DeserializationException {
-		String[] queryBody = getEmptyQueryBody();
-		Map<String, Object> newProperties = getJavaProperties(newEntity);
-		if (oldEntity == null) {
-			logger.info("Adding new entity with {} {}", idPropertyName,
-					entityId);
-			addNewEntity(entityId, newEntity, newProperties, queryBody);
-		} else {
-			logger.info("An entity with {} {} already exists, updating it",
-					idPropertyName, entityId);
+	private void prepareAddQueryBody(Object entity, String idPropertyName,
+			String entityId, String[] queryBody) throws SerializationException,
+			DeserializationException {
+		Map<String, Object> properties = getJavaProperties(entity);
+		logger.info("Adding new entity with {} {}", idPropertyName, entityId);
+		String javaClassName = entity.getClass().getName();
+		String javaClassSimpleName = entity.getClass().getSimpleName();
+		String subjectUri = getShortUriFromLocalName(entityId);
 
-			if (!newEntity.getClass().equals(oldEntity.getClass())) {
-				Class<?> oldClass = oldEntity.getClass();
-				Class<?> newClass = newEntity.getClass();
-				String subjectUri = getShortUriFromLocalName(entityId);
-				queryBody[DELETE_DATA_INDEX] += prepareTriple(subjectUri,
-						RDF.type.toString(),
-						getShortUriFromLocalName(oldClass.getSimpleName()));
-				queryBody[INSERT_DATA_INDEX] += prepareTriple(subjectUri,
-						RDF.type.toString(),
-						getShortUriFromLocalName(newClass.getSimpleName()));
-				queryBody[DELETE_DATA_INDEX] += prepareLiteralTriple(
-						subjectUri, Config.javaClassRDFProperty.toString(),
-						oldClass.getName());
-				queryBody[INSERT_DATA_INDEX] += prepareLiteralTriple(
-						subjectUri, Config.javaClassRDFProperty.toString(),
-						newClass.getName());
+		queryBody[INSERT_DATA_INDEX] += prepareTriple(subjectUri,
+				RDF.type.toString(),
+				getShortUriFromLocalName(javaClassSimpleName));
+		queryBody[INSERT_DATA_INDEX] += prepareLiteralTriple(subjectUri,
+				Config.javaClassRDFProperty.toString(), javaClassName);
+
+		for (String property : properties.keySet()) {
+			Object value = properties.get(property);
+			if (value != null) {
+				addNewProperty(subjectUri, getShortUriFromLocalName(property),
+						value, idPropertyName, queryBody);
 			}
-
-			Map<String, Object> oldEntityProperties = getJavaProperties(oldEntity);
-			for (String propertyName : newProperties.keySet()) {
-				Object oldEntityProperty = oldEntityProperties
-						.get(propertyName);
-				Object newEntityProperty = newProperties.get(propertyName);
-				if (oldEntityProperty == null && newEntityProperty == null) {
-					break;
-				} else if (oldEntityProperty == null) {
-					addNewProperty(getShortUriFromLocalName(entityId),
-							propertyName, newEntityProperty, queryBody);
-				} else if (newEntityProperty == null) {
-					deleteProperty(getShortUriFromLocalName(entityId),
-							propertyName, oldEntityProperty, queryBody);
-				} else if (!oldEntityProperty.equals(newEntityProperty)) { // add
-																			// new
-					// control
-					// for List
-					// and Map
-					// and
-					// change
-					// the Set
-					// serialization
-					deleteProperty(getShortUriFromLocalName(entityId),
-							propertyName, oldEntityProperty, queryBody);
-					addNewProperty(getShortUriFromLocalName(entityId),
-							propertyName, newEntityProperty, queryBody);
-				}
-			}
-
 		}
-		return queryBody;
 	}
 
 	private String prepareLiteralTriple(String s, String p, String o) {
@@ -736,8 +616,6 @@ public class FusekiKBAPI {
 			s = "<" + s + ">";
 		if (p.contains("/"))
 			p = "<" + p + ">";
-//		if (o.contains("/"))
-//			o = "<" + o + ">";
 		return s + " " + p + " \"" + o + "\" . ";
 	}
 
@@ -751,39 +629,41 @@ public class FusekiKBAPI {
 		return s + " " + p + " " + o + " . ";
 	}
 
-	private boolean skipObjectDeserialization(RDFNode rdfObject) {
-		return rdfObject.isResource()
-				&& !rdfObject.asResource().hasProperty(RDF.type, RDF.Bag)
-				&& !rdfObject.asResource().hasProperty(RDF.type, RDF.Seq)
-				&& !rdfObject.asResource().hasProperty(RDF.type,
-						Config.MapRDFResource);
+	private Object toJava(RDFNode rdfNode, Model model)
+			throws DeserializationException {
+		return toJava(rdfNode, model, new HashMap<RDFNode, Object>());
 	}
 
 	@SuppressWarnings({ "rawtypes", "unchecked" })
-	private Object toJava(RDFNode rdfNode, Model model)
+	private Object toJava(RDFNode rdfNode, Model model,
+			Map<RDFNode, Object> alreadyDeserialized)
 			throws DeserializationException {
+		if (alreadyDeserialized.containsKey(rdfNode))
+			return alreadyDeserialized.get(rdfNode);
 		Object entity = null;
 		if (rdfNode.isResource()) {
-			assert model.contains(rdfNode.asResource(), null, (RDFNode) null);
 			StmtIterator propIterator = model
 					.listStatements(new SkipPropertiesSelector(rdfNode
 							.asResource(), RDF.type,
 							Config.javaClassRDFProperty));
 			if (rdfNode.asResource().hasProperty(RDF.type, RDF.Bag)) {
 				entity = new HashSet();
+				alreadyDeserialized.put(rdfNode, entity);
 				while (propIterator.hasNext()) {
 					((Set) entity).add(toJava(propIterator.next().getObject(),
-							model));
+							model, alreadyDeserialized));
 				}
 			} else if (rdfNode.asResource().hasProperty(RDF.type, RDF.Seq)) {
 				entity = new ArrayList();
+				alreadyDeserialized.put(rdfNode, entity);
 				while (propIterator.hasNext()) {
 					((List) entity).add(toJava(propIterator.next().getObject(),
-							model));
+							model, alreadyDeserialized));
 				}
 			} else if (rdfNode.asResource().hasProperty(RDF.type,
 					Config.MapRDFResource)) {
 				entity = new HashMap();
+				alreadyDeserialized.put(rdfNode, entity);
 				while (propIterator.hasNext()) {
 					Resource mapNode = propIterator.next().getObject()
 							.asResource();
@@ -792,30 +672,27 @@ public class FusekiKBAPI {
 
 					RDFNode valueNode = mapNode.getProperty(
 							Config.valueRDFProperty).getObject();
-					Object key = toJava(keyNode, model);
-					Object value = toJava(valueNode, model);
+					Object key = toJava(keyNode, model, alreadyDeserialized);
+					Object value = toJava(valueNode, model, alreadyDeserialized);
 					((Map) entity).put(key, value);
 				}
 			} else {
 				try {
 					Class<?> entityClass = getJavaClass(rdfNode.asResource(),
 							model);
+					if (entityClass == null)
+						return null;
 					entity = entityClass.newInstance();
+					alreadyDeserialized.put(rdfNode, entity);
 					Map<String, Object> properties = new HashMap<String, Object>();
 					while (propIterator.hasNext()) {
 						Statement stmt = propIterator.nextStatement();
 						RDFNode rdfObject = stmt.getObject();
-						if (!skipObjectDeserialization(rdfObject)) { // we are
-																		// not
-																		// deserializing
-																		// all
-																		// related
-																		// entities
-							String javaProperty = stmt.getPredicate()
-									.getLocalName();
-							Object value = toJava(rdfObject, model);
-							properties.put(javaProperty, value);
-						}
+						String javaProperty = stmt.getPredicate()
+								.getLocalName();
+						Object value = toJava(rdfObject, model,
+								alreadyDeserialized);
+						properties.put(javaProperty, value);
 					}
 					BeanUtils.populate(entity, properties);
 				} catch (Exception e) {
@@ -833,8 +710,8 @@ public class FusekiKBAPI {
 	}
 
 	public void clearGraph(String graphName) {
-		UpdateRequest query = UpdateFactory.create("CLEAR GRAPH <" + getGraphURI(graphName) + ">",
-				Syntax.syntaxSPARQL_11);
+		UpdateRequest query = UpdateFactory.create("CLEAR GRAPH <"
+				+ getGraphURI(graphName) + ">", Syntax.syntaxSPARQL_11);
 		UpdateProcessor execUpdate = UpdateExecutionFactory.createRemote(query,
 				getKnowledgeBaseUpdateURL());
 		execUpdate.execute();

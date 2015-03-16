@@ -14,7 +14,7 @@
  *    See the License for the specific language governing permissions and
  *    limitations under the License.
  */
-package it.polimi.modaclouds.monitoring.kb.api.tests;
+package it.polimi.modaclouds.monitoring.kb.api;
 
 import static org.junit.Assert.*;
 import it.polimi.modaclouds.monitoring.kb.api.Util;

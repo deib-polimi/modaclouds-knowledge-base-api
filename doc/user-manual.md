@@ -2,8 +2,19 @@
 
 # Usage
 
-This api is used to perform CRUD operations against the Monitoring Knowledege Base in an object
+This api is used to perform CRUD operations against Apache Fuseki RDF triple store in an object
 oriented fashion.
+See the `it.polimi.modaclouds.monitoring.kb.api.FusekiKBAPIIT.java` class for usage examples.
+
+Any object that can be persisted is called entity.
+Allowed data types inside entities are:
+* `String`
+* `Map<?,?>` `?` can be any type in this list
+* `List<?>` `?` can be any type in this list
+* `Set<?>` `?` can be any type in this list
+* An entity
+
+Entities are neither written nor deleted recursively. Reads are instead recursive.
 
 ## Installation
 
@@ -42,47 +53,4 @@ Dependency:
 		<version>VERSION</version>
 	</dependency>
 </dependencies>
-```
-
-## Configuration
-
-The fuseki server should be started with the following configuration file,
-and after creating the *ds* folder:
-
-```
-@prefix fuseki:  <http://jena.apache.org/fuseki#> .
-@prefix rdf:     <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
-@prefix rdfs:    <http://www.w3.org/2000/01/rdf-schema#> .
-@prefix tdb:     <http://jena.hpl.hp.com/2008/tdb#> .
-@prefix ja:      <http://jena.hpl.hp.com/2005/11/Assembler#> .
-@prefix :        <#> .
-[] rdf:type fuseki:Server ;
-   fuseki:services (
-     <#service1> 
-   ) .
-
-<#service1>  rdf:type fuseki:Service ;
-    fuseki:name                       "modaclouds/kb" ;
-    fuseki:serviceQuery               "query" ;
-    fuseki:serviceQuery               "sparql" ;
-    fuseki:serviceUpdate              "update" ;
-    fuseki:serviceUpload              "upload" ;
-    fuseki:serviceReadWriteGraphStore "data" ;
-    fuseki:dataset           <#dataset> ;
-    .
-
-<#dataset> rdf:type      tdb:DatasetTDB ;
-    tdb:location "ds" ;
-    ja:context [ ja:cxtName "arq:queryTimeout" ;  ja:cxtValue "1000" ] ;
-    tdb:unionDefaultGraph true ;
-     .
-```
-
-Any application using this api should have in its build-path a "kb.properties" file with
-information about the fuseki server port and address. Here is an example 
-with a local fuseki instance:
-
-```
-kb_server.port=3030
-kb_server.address=localhost
 ```

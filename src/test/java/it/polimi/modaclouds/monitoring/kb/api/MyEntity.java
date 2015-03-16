@@ -14,22 +14,24 @@
  *    See the License for the specific language governing permissions and
  *    limitations under the License.
  */
-package it.polimi.modaclouds.monitoring.kb.api.examples;
+package it.polimi.modaclouds.monitoring.kb.api;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public class MyEntity {
-	
-	private HashSet<String> set = new HashSet<>();
-	private List<String> list = new ArrayList<>();
-	private Map<String, String> map = new HashMap<String, String>();
-	private String string = new String();
+
+	private Set<MyEntity> set;
+	private List<MyEntity> list;
+	private Map<String, MyEntity> map;
+	private String string;
+	private MyEntity entity;
 	private String id;
-	
+
 	public String getString() {
 		return string;
 	}
@@ -38,39 +40,45 @@ public class MyEntity {
 		this.string = string;
 	}
 
-	public void addElementToSet(String s){
-		set.add(s);
-	}
-	
-	public void addElementToList(String s){
-		list.add(s);
-	}
-	
-	public void addElementToMap(String key, String s){
-		map.put(key, s);
+	public void addElementToSet(MyEntity s) {
+		getSet().add(s);
 	}
 
-	public HashSet<String> getSet() {
+	public void addElementToList(MyEntity s) {
+		getList().add(s);
+	}
+
+	public void addElementToMap(String key, MyEntity s) {
+		getMap().put(key, s);
+	}
+
+	public Set<MyEntity> getSet() {
+		if (set == null)
+			set = new HashSet<MyEntity>();
 		return set;
 	}
 
-	public void setSet(HashSet<String> set) {
+	public void setSet(Set<MyEntity> set) {
 		this.set = set;
 	}
 
-	public List<String> getList() {
+	public List<MyEntity> getList() {
+		if (list == null)
+			list = new ArrayList<MyEntity>();
 		return list;
 	}
 
-	public void setList(List<String> list) {
+	public void setList(List<MyEntity> list) {
 		this.list = list;
 	}
 
-	public Map<String, String> getMap() {
+	public Map<String, MyEntity> getMap() {
+		if (map == null)
+			map = new HashMap<String, MyEntity>();
 		return map;
 	}
 
-	public void setMap(Map<String, String> map) {
+	public void setMap(Map<String, MyEntity> map) {
 		this.map = map;
 	}
 
@@ -81,7 +89,15 @@ public class MyEntity {
 	public void setId(String id) {
 		this.id = id;
 	}
-	
-	
 
+	public MyEntity getEntity() {
+		return entity;
+	}
+
+	public void setEntity(MyEntity entity) {
+		this.entity = entity;
+	}
+	
+	
+	
 }
