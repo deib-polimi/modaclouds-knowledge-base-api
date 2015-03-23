@@ -21,7 +21,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>it.polimi.modaclouds.monitoring.knowledge-base-api</groupId>
 	<artifactId>knowledge-base-api</artifactId>
-	<version>2.3</version>
+	<version>2.3.1</version>
 	<name>MODAClouds Knowledge Base API</name>
 	<packaging>jar</packaging>
 	<inceptionYear>2014</inceptionYear>
@@ -42,7 +42,7 @@
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 		<skipIT>false</skipIT>
 		<skipVagrantUp>false</skipVagrantUp>
-		<skipVagrantHalt>false</skipVagrantHalt>
+		<skipVagrantHalt>true</skipVagrantHalt>
 		<skipVagrantDestroy>true</skipVagrantDestroy>
 	</properties>
 

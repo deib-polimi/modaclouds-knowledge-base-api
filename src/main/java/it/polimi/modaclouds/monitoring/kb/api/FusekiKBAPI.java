@@ -366,17 +366,21 @@ public class FusekiKBAPI {
 		return getAll(entitiesClass, "default");
 	}
 
+	public Set<?> getAllEntities(
+			String graphName) throws DeserializationException {
+		return getAll(null,graphName);
+	}
+	
 	@SuppressWarnings("unchecked")
 	public <T> Set<T> getAll(Class<T> entitiesClass, String graphName)
 			throws DeserializationException {
 		Set<T> entities = new HashSet<T>();
 		Model model = datasetAccessor.getModel(getGraphURI(graphName));
 		if (model == null) {
-			logger.warn("Graph {} does not exist yet", graphName);
 			return entities;
 		}
 		StmtIterator iter = model.listStatements(null,
-				Config.javaClassRDFProperty, entitiesClass.getName());
+				Config.javaClassRDFProperty, entitiesClass!=null?entitiesClass.getName():null);
 		while (iter.hasNext()) {
 			entities.add((T) toJava(iter.next().getSubject(), model));
 		}

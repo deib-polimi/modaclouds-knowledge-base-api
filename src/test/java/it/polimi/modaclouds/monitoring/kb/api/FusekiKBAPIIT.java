@@ -18,18 +18,59 @@ package it.polimi.modaclouds.monitoring.kb.api;
 
 import static org.junit.Assert.*;
 
+import java.io.IOException;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.URL;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class FusekiKBAPIIT {
+	
+	private static final Logger logger = LoggerFactory.getLogger(FusekiKBAPI.class);
 
 	private FusekiKBAPI kb;
 
 	@Before
-	public void setUp() {
+	public void setUp() throws IOException {
+		waitForResponseCode("http://localhost:3030", 200, 5, 5000);
 		kb = new FusekiKBAPI("http://localhost:3030/modaclouds/kb");
 		kb.clearAll();
+	}
+	
+	private boolean isResponseCode(String url, int expectedCode)
+			throws MalformedURLException, IOException {
+		HttpURLConnection connection = (HttpURLConnection) new URL(url)
+				.openConnection();
+		connection.setRequestMethod("GET");
+		connection.connect();
+		return connection.getResponseCode() == expectedCode;
+	}
+
+	private void waitForResponseCode(String url, int expectedCode,
+			int retryTimes, int retryPeriodInMilliseconds) throws IOException {
+		while (true) {
+			try {
+				if (isResponseCode(url, expectedCode))
+					return;
+			} catch (Exception e) {
+			}
+			retryTimes--;
+			if (retryTimes <= 0) {
+				throw new IOException("Could not connect to the service.");
+			}
+			try {
+				logger.info("Connection failed, retrying in {} seconds...",
+						retryPeriodInMilliseconds / 1000);
+				Thread.sleep(retryPeriodInMilliseconds);
+			} catch (InterruptedException e) {
+				throw new IOException();
+			}
+		}
 	}
 
 	@After

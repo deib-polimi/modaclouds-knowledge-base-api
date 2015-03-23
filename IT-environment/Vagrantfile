@@ -7,7 +7,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.define "vm-4-kbapi-IT" do |config|
     
     config.vm.box = "ubuntu/trusty64"
-    config.vm.hostname = "docker-vm"
+    config.vm.hostname = "kb-IT-vm"
     config.vm.network "forwarded_port", guest: 3030, host: 3030
 
     config.vm.provision "shell", path: "kb/bootstrap.sh"
