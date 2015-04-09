@@ -5,3 +5,4 @@
 /target
 .*.md.html
 .vagrant
+*.log

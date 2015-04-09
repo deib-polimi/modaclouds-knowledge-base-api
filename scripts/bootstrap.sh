@@ -18,6 +18,8 @@
 apt-get update
 apt-get install -y tar openjdk-7-jre
 
+VERSION="1.1.1"
+
 if [ -d /opt/fuseki ];
 	then rm -r /opt/fuseki
 fi
@@ -25,7 +27,7 @@ fi
 mkdir -p /opt/fuseki
 cd /opt/fuseki
 
-echo "Downloading fuseki..."
-wget --quiet -O jena-fuseki-1.1.1-distribution.tar.gz http://archive.apache.org/dist/jena/binaries/jena-fuseki-1.1.1-distribution.tar.gz
-tar -xvzf jena-fuseki-1.1.1-distribution.tar.gz -C .
-chmod +x jena-fuseki-1.1.1/fuseki-server
+echo "Downloading jena-fuseki-${VERSION}..."
+wget --quiet -O jena-fuseki-${VERSION}-distribution.tar.gz http://archive.apache.org/dist/jena/binaries/jena-fuseki-${VERSION}-distribution.tar.gz
+tar -xvzf jena-fuseki-${VERSION}-distribution.tar.gz -C .
+chmod +x jena-fuseki-${VERSION}/fuseki-server

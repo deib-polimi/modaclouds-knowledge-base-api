@@ -16,10 +16,13 @@
 #    limitations under the License.
 #
 
+pkill -f 'java.*fuseki-server'
+
 if [ ! -d /opt/fuseki/ds ];
 	then mkdir -p /opt/fuseki/ds
 fi
 rm -rf /opt/fuseki/ds/*
-cd /opt/fuseki/jena-fuseki-1.1.1/
+cd /opt/fuseki/jena-fuseki-*/
+mkdir -p /vagrant/logs
 echo "Starting kb..."
-./fuseki-server --update --loc /opt/fuseki/ds /modaclouds/kb > /opt/fuseki/log.txt 2>&1 &
+./fuseki-server --update --loc /opt/fuseki/ds /modaclouds/kb > /vagrant/logs/kb.log 2>&1 &

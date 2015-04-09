@@ -4,6 +4,9 @@ Take a look at the [documentation table of contents](doc/TOC.md).
 
 ## Change List
 
+v2.3.2:
+* bug fix
+
 v2.3.1:
 * added API for retrieving all entities in a graph `FusekiKBAPI.getAllEntities(String graphName)`
 

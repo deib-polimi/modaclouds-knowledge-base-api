@@ -31,6 +31,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Sets;
+import com.hp.hpl.jena.datatypes.xsd.XSDDatatype;
 import com.hp.hpl.jena.ontology.OntModel;
 import com.hp.hpl.jena.query.DatasetAccessor;
 import com.hp.hpl.jena.query.DatasetAccessorFactory;
@@ -51,6 +52,7 @@ import com.hp.hpl.jena.update.UpdateFactory;
 import com.hp.hpl.jena.update.UpdateProcessor;
 import com.hp.hpl.jena.update.UpdateRequest;
 import com.hp.hpl.jena.vocabulary.RDF;
+import com.hp.hpl.jena.vocabulary.XSD;
 
 public class FusekiKBAPI {
 
@@ -224,14 +226,38 @@ public class FusekiKBAPI {
 						mapObjects.get(key), idPropertyName, queryBody);
 				i++;
 			}
-		} else if (object instanceof String) {
+		} else if (isLiteral(object)) {
 			queryBody[INSERT_DATA_INDEX] += prepareLiteralTriple(subjectUri,
-					propertyUri, object.toString());
+					propertyUri, object.toString(), getLiteralDataType(object));
 		} else { // it's an entity
 			String entityId = getEntityId(object, idPropertyName);
 			queryBody[INSERT_DATA_INDEX] += prepareTriple(subjectUri,
 					propertyUri, getShortUriFromLocalName(entityId));
 		}
+	}
+
+	private XSDDatatype getLiteralDataType(Object object) {
+		List<XSDDatatype> types = new ArrayList<XSDDatatype>();
+		types.add(XSDDatatype.XSDstring);
+		types.add(XSDDatatype.XSDint);
+		types.add(XSDDatatype.XSDinteger);
+		types.add(XSDDatatype.XSDboolean);
+		types.add(XSDDatatype.XSDbyte);
+		types.add(XSDDatatype.XSDdecimal);
+		types.add(XSDDatatype.XSDdouble);
+		types.add(XSDDatatype.XSDfloat);
+		types.add(XSDDatatype.XSDlong);
+		types.add(XSDDatatype.XSDshort);
+		for (XSDDatatype type : types) {
+			if (type.getJavaClass().isInstance(object)) {
+				return type;
+			}
+		}
+		return null;
+	}
+
+	private boolean isLiteral(Object object) {
+		return getLiteralDataType(object) != null;
 	}
 
 	public void deleteAll(Set<?> entities, String idPropertyName)
@@ -241,19 +267,19 @@ public class FusekiKBAPI {
 
 	public void deleteAll(Set<?> entities, String idPropertyName,
 			String graphName) throws SerializationException {
-		Set<String> ids = new HashSet<String>();
+		Set<Object> ids = new HashSet<Object>();
 		for (Object entity : entities) {
 			ids.add(getEntityId(entity, idPropertyName));
 		}
 		deleteEntitiesByPropertyValues(ids, idPropertyName, graphName);
 	}
 
-	public void deleteEntitiesByPropertyValues(Set<String> propertyValues,
+	public void deleteEntitiesByPropertyValues(Set<Object> propertyValues,
 			String propertyName) throws SerializationException {
 		deleteEntitiesByPropertyValues(propertyValues, propertyName, "default");
 	}
 
-	public void deleteEntitiesByPropertyValues(Set<String> propertyValues,
+	public void deleteEntitiesByPropertyValues(Set<Object> propertyValues,
 			String propertyName, String graphName)
 			throws SerializationException {
 		Preconditions.checkNotNull(propertyValues);
@@ -275,13 +301,14 @@ public class FusekiKBAPI {
 	}
 
 	private void prepareDeleteByPropertyValuesQueryBody(
-			Set<String> propertyValues, String propertyName, String[] queryBody) {
+			Set<Object> propertyValues, String propertyName, String[] queryBody) {
 		String unionBlock = "{ ";
 		int left = propertyValues.size();
-		for (String value : propertyValues) {
+		for (Object value : propertyValues) {
 			left--;
 			unionBlock += prepareLiteralTriple("?s",
-					getShortUriFromLocalName(propertyName), value);
+					getShortUriFromLocalName(propertyName), value.toString(),
+					getLiteralDataType(value));
 			if (left > 0) {
 				unionBlock += "} UNION { ";
 			}
@@ -308,15 +335,35 @@ public class FusekiKBAPI {
 				+ prepareTriple("?o", "?p2", "?o2");
 	}
 
-	public void deleteEntitiesByPropertyValue(String propertyValue,
+	/**
+	 * 
+	 * @param propertyValue
+	 *            must be either a String or a primitive value
+	 * @param propertyName
+	 * @throws SerializationException
+	 */
+	public void deleteEntitiesByPropertyValue(Object propertyValue,
 			String propertyName) throws SerializationException {
+		if (!isLiteral(propertyValue))
+			throw new SerializationException(
+					"The value is neither a string or a primitive value");
 		deleteEntitiesByPropertyValue(propertyValue, propertyName, "default");
 	}
 
-	public void deleteEntitiesByPropertyValue(String propertyValue,
+	/**
+	 * 
+	 * @param propertyValue
+	 *            must be either a String or a primitive value
+	 * @param propertyName
+	 * @param graphName
+	 * @throws SerializationException
+	 */
+	public void deleteEntitiesByPropertyValue(Object propertyValue,
 			String propertyName, String graphName)
 			throws SerializationException {
-
+		if (!isLiteral(propertyValue))
+			throw new SerializationException(
+					"The value is neither a string or a primitive value");
 		String[] queryBody = getEmptyQueryBody();
 		prepareDeleteByPropertyValueQueryBody(propertyValue, propertyName,
 				queryBody);
@@ -330,11 +377,13 @@ public class FusekiKBAPI {
 		execUpdate.execute();
 	}
 
-	private void prepareDeleteByPropertyValueQueryBody(String propertyValue,
+	private void prepareDeleteByPropertyValueQueryBody(Object propertyValue,
 			String propertyName, String[] queryBody) {
 		queryBody[DELETE_INDEX] += prepareTriple("?s", "?p", "?o")
 				+ prepareLiteralTriple("?s",
-						getShortUriFromLocalName(propertyName), propertyValue)
+						getShortUriFromLocalName(propertyName),
+						propertyValue.toString(),
+						getLiteralDataType(propertyValue))
 				+ prepareTriple("?o", "?p1", "?o1")
 				+ prepareTriple("?o1", "?p2", "?o2")
 				+ prepareTriple("?o1", "?p3", "?o3")
@@ -343,7 +392,8 @@ public class FusekiKBAPI {
 				+ prepareTriple("?o", RDF.type.toString(),
 						Config.MapRDFResource.toString());
 		queryBody[WHERE_4_DELETE_INDEX] += prepareLiteralTriple("?s",
-				getShortUriFromLocalName(propertyName), propertyValue)
+				getShortUriFromLocalName(propertyName),
+				propertyValue.toString(), getLiteralDataType(propertyValue))
 				+ prepareTriple("?s", "?p", "?o")
 				+ "OPTIONAL { "
 				+ prepareTriple("?o", RDF.type.toString(), RDF.Seq.toString())
@@ -366,11 +416,11 @@ public class FusekiKBAPI {
 		return getAll(entitiesClass, "default");
 	}
 
-	public Set<?> getAllEntities(
-			String graphName) throws DeserializationException {
-		return getAll(null,graphName);
+	public Set<?> getAllEntities(String graphName)
+			throws DeserializationException {
+		return getAll(null, graphName);
 	}
-	
+
 	@SuppressWarnings("unchecked")
 	public <T> Set<T> getAll(Class<T> entitiesClass, String graphName)
 			throws DeserializationException {
@@ -380,7 +430,8 @@ public class FusekiKBAPI {
 			return entities;
 		}
 		StmtIterator iter = model.listStatements(null,
-				Config.javaClassRDFProperty, entitiesClass!=null?entitiesClass.getName():null);
+				Config.javaClassRDFProperty,
+				entitiesClass != null ? entitiesClass.getName() : null);
 		while (iter.hasNext()) {
 			entities.add((T) toJava(iter.next().getSubject(), model));
 		}
@@ -563,6 +614,8 @@ public class FusekiKBAPI {
 				+ Config.entitiesNamespace
 				+ "> PREFIX rdf:<"
 				+ RDF.getURI()
+				+ "> PREFIX xsd:<"
+				+ XSD.getURI()
 				+ "> "
 				+ "DELETE DATA { "
 				+ inGraph(queryBody[DELETE_DATA_INDEX], graphName)
@@ -604,7 +657,8 @@ public class FusekiKBAPI {
 				RDF.type.toString(),
 				getShortUriFromLocalName(javaClassSimpleName));
 		queryBody[INSERT_DATA_INDEX] += prepareLiteralTriple(subjectUri,
-				Config.javaClassRDFProperty.toString(), javaClassName);
+				Config.javaClassRDFProperty.toString(), javaClassName,
+				getLiteralDataType(javaClassName));
 
 		for (String property : properties.keySet()) {
 			Object value = properties.get(property);
@@ -615,12 +669,13 @@ public class FusekiKBAPI {
 		}
 	}
 
-	private String prepareLiteralTriple(String s, String p, String o) {
+	private String prepareLiteralTriple(String s, String p, String o,
+			XSDDatatype dataType) {
 		if (s.contains("/"))
 			s = "<" + s + ">";
 		if (p.contains("/"))
 			p = "<" + p + ">";
-		return s + " " + p + " \"" + o + "\" . ";
+		return s + " " + p + " \"" + o + "\"^^<" + dataType.getURI() + "> . ";
 	}
 
 	private String prepareTriple(String s, String p, String o) {

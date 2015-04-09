@@ -21,7 +21,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>it.polimi.modaclouds.monitoring.knowledge-base-api</groupId>
 	<artifactId>knowledge-base-api</artifactId>
-	<version>2.3.1</version>
+	<version>2.3.2</version>
 	<name>MODAClouds Knowledge Base API</name>
 	<packaging>jar</packaging>
 	<inceptionYear>2014</inceptionYear>
@@ -40,9 +40,11 @@
 		<github.user.name>deib-polimi</github.user.name>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+		
+		<!-- Integration Test Environment - Vagrant required -->
 		<skipIT>false</skipIT>
-		<skipVagrantUp>false</skipVagrantUp>
-		<skipVagrantHalt>true</skipVagrantHalt>
+		<skipVagrantHaltBeforeIT>false</skipVagrantHaltBeforeIT>
+		<skipVagrantHaltAfterIT>false</skipVagrantHaltAfterIT>
 		<skipVagrantDestroy>true</skipVagrantDestroy>
 	</properties>
 
@@ -240,33 +242,48 @@
 				<version>1.1.1</version>
 				<executions>
 					<execution>
-						<id>start-vagrant-vm</id>
+						<id>halt-vagrant-vm</id>
 						<phase>pre-integration-test</phase>
 						<goals>
 							<goal>exec</goal>
 						</goals>
 						<configuration>
-							<workingDirectory>IT-environment</workingDirectory>
+							<workingDirectory>${basedir}</workingDirectory>
+							<executable>vagrant</executable>
+							<arguments>
+								<argument>halt</argument>
+							</arguments>
+							<skip>${skipVagrantHaltBeforeIT}</skip>
+						</configuration>
+					</execution>
+					<execution>
+						<id>vagrant-up-vm</id>
+						<phase>pre-integration-test</phase>
+						<goals>
+							<goal>exec</goal>
+						</goals>
+						<configuration>
+							<workingDirectory>${basedir}</workingDirectory>
 							<executable>vagrant</executable>
 							<arguments>
 								<argument>up</argument>
 							</arguments>
-							<skip>${skipVagrantUp}</skip>
+							<skip>${skipIT}</skip>
 						</configuration>
 					</execution>
 					<execution>
-						<id>halt-vagrant-vm</id>
+						<id>halt-vagrant-vm-after-IT</id>
 						<phase>post-integration-test</phase>
 						<goals>
 							<goal>exec</goal>
 						</goals>
 						<configuration>
-							<workingDirectory>IT-environment</workingDirectory>
+							<workingDirectory>${basedir}</workingDirectory>
 							<executable>vagrant</executable>
 							<arguments>
 								<argument>halt</argument>
 							</arguments>
-							<skip>${skipVagrantHalt}</skip>
+							<skip>${skipVagrantHaltAfterIT}</skip>
 						</configuration>
 					</execution>
 					<execution>
@@ -276,7 +293,7 @@
 							<goal>exec</goal>
 						</goals>
 						<configuration>
-							<workingDirectory>IT-environment</workingDirectory>
+							<workingDirectory>${basedir}</workingDirectory>
 							<executable>vagrant</executable>
 							<arguments>
 								<argument>destroy</argument>
