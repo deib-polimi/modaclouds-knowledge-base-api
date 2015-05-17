@@ -16,78 +16,61 @@
  */
 package it.polimi.modaclouds.monitoring.kb.api;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
-import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
-import java.net.URL;
 
+import org.apache.jena.fuseki.EmbeddedFusekiServer;
 import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+import com.hp.hpl.jena.sparql.core.DatasetGraph;
+import com.hp.hpl.jena.sparql.core.DatasetGraphFactory;
 
 public class FusekiKBAPIIT {
-	
-	private static final Logger logger = LoggerFactory.getLogger(FusekiKBAPI.class);
 
-	private FusekiKBAPI kb;
+	private static EmbeddedFusekiServer server;
+	private FusekiKbAPI kb;
+	private static final int kbPort = Util.findFreePort();
+
+	@BeforeClass
+	public static void beforeClass() {
+		DatasetGraph dsg = DatasetGraphFactory.createMem();
+		server = EmbeddedFusekiServer.create(kbPort, dsg, "/modaclouds/kb");
+		server.start();
+	}
+
+	@AfterClass
+	public static void afterClass() {
+		server.stop();
+	}
 
 	@Before
 	public void setUp() throws IOException {
-		waitForResponseCode("http://localhost:3030", 200, 5, 5000);
-		kb = new FusekiKBAPI("http://localhost:3030/modaclouds/kb");
+		kb = new FusekiKbAPI("http://localhost:" + kbPort + "/modaclouds/kb");
 		kb.clearAll();
-	}
-	
-	private boolean isResponseCode(String url, int expectedCode)
-			throws MalformedURLException, IOException {
-		HttpURLConnection connection = (HttpURLConnection) new URL(url)
-				.openConnection();
-		connection.setRequestMethod("GET");
-		connection.connect();
-		return connection.getResponseCode() == expectedCode;
-	}
-
-	private void waitForResponseCode(String url, int expectedCode,
-			int retryTimes, int retryPeriodInMilliseconds) throws IOException {
-		while (true) {
-			try {
-				if (isResponseCode(url, expectedCode))
-					return;
-			} catch (Exception e) {
-			}
-			retryTimes--;
-			if (retryTimes <= 0) {
-				throw new IOException("Could not connect to the service.");
-			}
-			try {
-				logger.info("Connection failed, retrying in {} seconds...",
-						retryPeriodInMilliseconds / 1000);
-				Thread.sleep(retryPeriodInMilliseconds);
-			} catch (InterruptedException e) {
-				throw new IOException();
-			}
-		}
 	}
 
 	@After
 	public void tearDown() {
 		kb.clearAll();
 	}
-	
+
 	@Test
-	public void shouldFindWhatIPut() throws SerializationException,
-			DeserializationException {
+	public void shouldFindWhatIPut() throws Exception {
 		MyEntity entity1 = new MyEntity();
 		MyEntity entity2 = new MyEntity();
 		entity1.setId("entity1");
 		entity2.setId("entity2");
-		entity1.addElementToList(entity2);
-		entity1.addElementToMap("property", entity2);
-		entity1.addElementToSet(entity2);
+		entity1.addEntityToList(entity2);
+		entity1.addEntityToMap("property", entity2);
+		entity1.addEntityToSet(entity2);
 		entity1.setEntity(entity2);
 		entity1.setString("provaString");
 		kb.add(entity1, "id");
@@ -102,8 +85,7 @@ public class FusekiKBAPIIT {
 	}
 
 	@Test
-	public void shouldNotFindWhatIDidNotPut() throws SerializationException,
-			DeserializationException {
+	public void shouldNotFindWhatIDidNotPut() throws Exception {
 		MyEntity entity1 = new MyEntity();
 		MyEntity entity2 = new MyEntity();
 		entity1.setId("entity1");
@@ -114,12 +96,11 @@ public class FusekiKBAPIIT {
 	}
 
 	@Test
-	public void shouldWorksFineWithRecursivity() throws SerializationException,
-			DeserializationException {
+	public void shouldWorksFineWithRecursivity() throws Exception {
 		MyEntity entity1 = new MyEntity();
 		entity1.setId("entity1");
 		entity1.setEntity(entity1);
-		entity1.addElementToList(entity1);
+		entity1.addEntityToList(entity1);
 		kb.add(entity1, "id");
 		Object retrievedEntity1 = kb.getEntityById("entity1", "id");
 		assertEquals(entity1.getEntity().getId(), ((MyEntity) retrievedEntity1)
@@ -129,22 +110,21 @@ public class FusekiKBAPIIT {
 		assertEquals(retrievedEntity1, ((MyEntity) retrievedEntity1).getList()
 				.get(0));
 	}
-	
+
 	@Test
-	public void kbShouldBeEmptyInTheBegininning(){
+	public void kbShouldBeEmptyInTheBegininning() {
 		assertTrue(kb.datasetAccessor.getModel().isEmpty());
 	}
-	
+
 	@Test
-	public void shouldBeEmptyAfterRemove() throws SerializationException,
-			DeserializationException {
+	public void shouldBeEmptyAfterRemove() throws Exception {
 		MyEntity entity1 = new MyEntity();
 		MyEntity entity2 = new MyEntity();
 		entity1.setId("entity1");
 		entity2.setId("entity2");
-		entity1.addElementToList(entity2);
-		entity1.addElementToMap("property", entity2);
-		entity1.addElementToSet(entity2);
+		entity1.addEntityToList(entity2);
+		entity1.addEntityToMap("property", entity2);
+		entity1.addEntityToSet(entity2);
 		entity1.setEntity(entity2);
 		entity1.setString("provaString");
 		kb.add(entity1, "id");
@@ -153,17 +133,16 @@ public class FusekiKBAPIIT {
 		kb.deleteEntitiesByPropertyValue("entity2", "id");
 		assertTrue(kb.datasetAccessor.getModel().isEmpty());
 	}
-	
+
 	@Test
-	public void shouldDeleteOnlyTheDeletedEntity1() throws SerializationException,
-			DeserializationException {
+	public void shouldDeleteOnlyTheDeletedEntity1() throws Exception {
 		MyEntity entity1 = new MyEntity();
 		MyEntity entity2 = new MyEntity();
 		entity1.setId("entity1");
 		entity2.setId("entity2");
-		entity1.addElementToList(entity2);
-		entity1.addElementToMap("property", entity2);
-		entity1.addElementToSet(entity2);
+		entity1.addEntityToList(entity2);
+		entity1.addEntityToMap("property", entity2);
+		entity1.addEntityToSet(entity2);
 		entity1.setEntity(entity2);
 		entity1.setString("provaString");
 		kb.add(entity1, "id");
@@ -173,17 +152,16 @@ public class FusekiKBAPIIT {
 		assertEquals(entity2.getId(), ((MyEntity) retrievedEntity2).getId());
 		assertTrue(kb.getEntityById("entity1", "id") == null);
 	}
-	
+
 	@Test
-	public void shouldDeleteOnlyTheDeletedEntity2() throws SerializationException,
-			DeserializationException {
+	public void shouldDeleteOnlyTheDeletedEntity2() throws Exception {
 		MyEntity entity1 = new MyEntity();
 		MyEntity entity2 = new MyEntity();
 		entity1.setId("entity1");
 		entity2.setId("entity2");
-		entity1.addElementToList(entity2);
-		entity1.addElementToMap("property", entity2);
-		entity1.addElementToSet(entity2);
+		entity1.addEntityToList(entity2);
+		entity1.addEntityToMap("property", entity2);
+		entity1.addEntityToSet(entity2);
 		entity1.setEntity(entity2);
 		entity1.setString("provaString");
 		kb.add(entity1, "id");
@@ -195,34 +173,34 @@ public class FusekiKBAPIIT {
 		assertNull(((MyEntity) retrievedEntity1).getMap().get("property"));
 		assertTrue(kb.getEntityById("entity2", "id") == null);
 	}
-	
+
 	@Test
-	public void shouldDeleteWithRecursivity() throws SerializationException,
-			DeserializationException {
+	public void shouldDeleteWithRecursivity() throws Exception {
 		MyEntity entity1 = new MyEntity();
 		entity1.setId("entity1");
 		entity1.setEntity(entity1);
-		entity1.addElementToList(entity1);
+		entity1.addEntityToList(entity1);
 		kb.add(entity1, "id");
 		kb.deleteEntitiesByPropertyValue("entity1", "id");
 		assertTrue(kb.datasetAccessor.getModel().isEmpty());
 	}
-	
+
 	@Test
-	public void shoudlOverwriteOnSameId() throws SerializationException,
-			DeserializationException {
+	public void shoudlOverwriteOnSameId() throws Exception {
 		MyEntity entity1 = new MyEntity();
 		entity1.setId("entity1");
 		entity1.setEntity(entity1);
-		entity1.addElementToMap("someProp", entity1);
+		entity1.addEntityToMap("someProp", entity1);
 		kb.add(entity1, "id");
 		MyEntity entity2 = new MyEntity();
 		entity2.setId("entity1");
 		entity2.setEntity(entity2);
-		entity2.addElementToList(entity2);
+		entity2.addEntityToList(entity2);
 		kb.add(entity2, "id");
-		assertTrue(((MyEntity)kb.getEntityById("entity1", "id")).getMap().isEmpty());
-		assertFalse(((MyEntity)kb.getEntityById("entity1", "id")).getList().isEmpty());
+		assertTrue(((MyEntity) kb.getEntityById("entity1", "id")).getMap()
+				.isEmpty());
+		assertFalse(((MyEntity) kb.getEntityById("entity1", "id")).getList()
+				.isEmpty());
 		kb.deleteEntitiesByPropertyValue("entity1", "id");
 		assertTrue(kb.datasetAccessor.getModel().isEmpty());
 	}

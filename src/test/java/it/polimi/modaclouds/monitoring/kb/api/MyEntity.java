@@ -25,12 +25,23 @@ import java.util.Set;
 
 public class MyEntity {
 
+	private Set<String> setString;
 	private Set<MyEntity> set;
 	private List<MyEntity> list;
 	private Map<String, MyEntity> map;
 	private String string;
 	private MyEntity entity;
 	private String id;
+
+	public Set<String> getSetString() {
+		if (setString == null)
+			setString = new HashSet<String>();
+		return setString;
+	}
+
+	public void setSetString(Set<String> setString) {
+		this.setString = setString;
+	}
 
 	public String getString() {
 		return string;
@@ -39,16 +50,20 @@ public class MyEntity {
 	public void setString(String string) {
 		this.string = string;
 	}
+	
+	public void addStringToSet(String s) {
+		getSetString().add(s);
+	}
 
-	public void addElementToSet(MyEntity s) {
+	public void addEntityToSet(MyEntity s) {
 		getSet().add(s);
 	}
 
-	public void addElementToList(MyEntity s) {
+	public void addEntityToList(MyEntity s) {
 		getList().add(s);
 	}
 
-	public void addElementToMap(String key, MyEntity s) {
+	public void addEntityToMap(String key, MyEntity s) {
 		getMap().put(key, s);
 	}
 
@@ -97,7 +112,5 @@ public class MyEntity {
 	public void setEntity(MyEntity entity) {
 		this.entity = entity;
 	}
-	
-	
-	
+
 }

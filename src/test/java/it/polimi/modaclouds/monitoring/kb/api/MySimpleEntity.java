@@ -16,16 +16,15 @@
  */
 package it.polimi.modaclouds.monitoring.kb.api;
 
-import static org.junit.Assert.*;
-import it.polimi.modaclouds.monitoring.kb.api.Util;
+public class MySimpleEntity {
 
-import org.junit.Test;
+	private String id;
 
-public class UtilTest {
-
-	@Test
-	public void urlEncodeTest() {
-		assertNotNull(Util.urlEncode("Ciao // Ciao"));
+	public void setId(String id) {
+		this.id = id;
 	}
-
+	
+	public String getId() {
+		return id;
+	}
 }
