@@ -4,6 +4,9 @@ Take a look at the [documentation table of contents](doc/TOC.md).
 
 ## Change List
 
+v2.4.1:
+* Jena-core version changed to an old one for a conflict with other library
+
 v2.4
 * added support for RSP rdf internal store
 
