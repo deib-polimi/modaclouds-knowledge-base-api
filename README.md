@@ -4,6 +4,9 @@ Take a look at the [documentation table of contents](doc/TOC.md).
 
 ## Change List
 
+v2.4
+* added support for RSP rdf internal store
+
 v2.3.2:
 * bug fix
 
