@@ -180,8 +180,8 @@ public class SPARQLQueryFactory {
 		return queryBody;
 	}
 
-	private void prepareDeleteByPropertyValuesQueryBody(
-			Set<?> propertyValues, String propertyName, String[] queryBody) {
+	private void prepareDeleteByPropertyValuesQueryBody(Set<?> propertyValues,
+			String propertyName, String[] queryBody) {
 		String unionBlock = "{ ";
 		int left = propertyValues.size();
 		for (Object value : propertyValues) {
@@ -253,8 +253,9 @@ public class SPARQLQueryFactory {
 					RDF.type.toString(), RDF.Bag.toString());
 			int i = 0;
 			for (Object obj : setObjects) {
-				addNewProperty(anonUri, RDF.li(i).toString(), obj,
-						idPropertyName, queryBody);
+				if (obj != null)
+					addNewProperty(anonUri, RDF.li(i).toString(), obj,
+							idPropertyName, queryBody);
 				i++;
 			}
 		} else if (object instanceof List<?>) {
